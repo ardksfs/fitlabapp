@@ -1,3 +1,4 @@
+```vue
 <template>
     <ion-page>
         <ion-split-pane content-id="main-content" when="lg" class="custom-split-pane">
@@ -10,7 +11,10 @@
                 class="custom-sidebar"
             >
                 <ion-content class="sidebar-content">
-                    <Sidebar @openProfile="isProfileOpen = true" />
+                    <Sidebar
+                        :profile="profile"
+                        @openProfile="openProfileModal"
+                    />
                 </ion-content>
             </ion-menu>
 
@@ -20,8 +24,9 @@
         <!-- Modal Profile -->
         <ion-modal
             :is-open="isProfileOpen"
-            @didDismiss="isProfileOpen = false"
-            class="profile-modal">
+            @didDismiss="closeProfileModal"
+            class="profile-modal"
+        >
             <div class="modal-wrapper">
 
                 <!-- Header -->
@@ -31,7 +36,8 @@
                     <button
                         class="close-button"
                         type="button"
-                        @click="isProfileOpen = false">
+                        @click="closeProfileModal"
+                    >
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
@@ -46,7 +52,9 @@
                             <label>Full name</label>
                             <input
                                 type="text"
-                                value="Admin Fitlab"
+                                v-model="form.name"
+                                placeholder="Enter your full name"
+                                required
                             />
                         </div>
 
@@ -54,7 +62,9 @@
                             <label>Email</label>
                             <input
                                 type="email"
-                                value="admin@admin.com"
+                                v-model="form.email"
+                                placeholder="Enter your email"
+                                required
                             />
                         </div>
 
@@ -64,7 +74,8 @@
                                 <label>Timezone</label>
                                 <input
                                     type="text"
-                                    value="GMT-8"
+                                    v-model="form.timezone"
+                                    placeholder="e.g. GMT+7"
                                 />
                             </div>
 
@@ -72,7 +83,8 @@
                                 <label>Working hours</label>
                                 <input
                                     type="text"
-                                    value="10 AM - 6 PM"
+                                    v-model="form.workingHours"
+                                    placeholder="e.g. 10 AM - 6 PM"
                                 />
                             </div>
 
@@ -82,7 +94,8 @@
                             <label>Title</label>
                             <input
                                 type="text"
-                                value="System Administrator"
+                                v-model="form.title"
+                                placeholder="Enter your job title"
                             />
                         </div>
 
@@ -96,31 +109,41 @@
                         <div class="avatar-container">
 
                             <img
-                                src="/assets/regi.jpg"
+                                :src="form.avatar || '/assets/regi.jpg'"
                                 class="avatar"
                                 alt="Profile"
                             />
 
                             <input
+                                ref="fileInput"
                                 type="file"
                                 id="fileInput"
-                                style="display: none;"
+                                accept="image/jpeg,image/png,image/webp"
+                                class="hidden-file-input"
+                                @change="handleAvatarChange"
                             />
 
                             <label
                                 for="fileInput"
                                 class="edit-badge"
+                                title="Change profile picture"
                             >
                                 <i class="fa-solid fa-pencil"></i>
                             </label>
 
                         </div>
 
-                        <h4>Admin Fitlab</h4>
+                        <h4>{{ form.name || 'Admin Fitlab' }}</h4>
 
                         <p class="role">
-                            System Administrator
+                            {{ form.title || 'System Administrator' }}
                         </p>
+
+                        <!-- Digital Clock -->
+                        <div class="digital-clock">
+                            <i class="fa-regular fa-clock"></i>
+                            <span>{{ digitalClock }}</span>
+                        </div>
 
                     </div>
 
@@ -130,7 +153,7 @@
                 <div class="modal-footer">
 
                     <span class="last-updated">
-                        Last updated: {{ currentDate }}
+                        Last updated: {{ profile.lastUpdated }}
                     </span>
 
                     <div class="actions">
@@ -138,7 +161,7 @@
                         <button
                             type="button"
                             class="btn-cancel"
-                            @click="isProfileOpen = false"
+                            @click="closeProfileModal"
                         >
                             <i class="fa-solid fa-xmark"></i>
                             <span>Cancel</span>
@@ -147,6 +170,7 @@
                         <button
                             type="button"
                             class="btn-save"
+                            @click="saveProfile"
                         >
                             <i class="fa-solid fa-check"></i>
                             <span>Save changes</span>
@@ -163,7 +187,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted, onUnmounted } from 'vue';
+
 import {
     IonPage,
     IonSplitPane,
@@ -175,24 +200,204 @@ import {
 
 import Sidebar from '../components/Sidebar.vue';
 
-const isProfileOpen = ref(false);
-const currentDate = ref('');
+interface AdminProfile {
+    name: string;
+    email: string;
+    timezone: string;
+    workingHours: string;
+    title: string;
+    avatar: string;
+    lastUpdated: string;
+}
 
-const updateDate = () => {
-    const options: Intl.DateTimeFormatOptions = {
+const STORAGE_KEY = 'fitlab-admin-profile';
+
+const defaultProfile: AdminProfile = {
+    name: 'Admin Fitlab',
+    email: 'admin@admin.com',
+    timezone: 'GMT-8',
+    workingHours: '10 AM - 6 PM',
+    title: 'System Administrator',
+    avatar: '/assets/regi.jpg',
+    lastUpdated: new Date().toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+};
+
+// Load profile from localStorage
+const loadProfile = (): AdminProfile => {
+    try {
+        const savedProfile = localStorage.getItem(STORAGE_KEY);
+
+        if (savedProfile) {
+            const parsedProfile = JSON.parse(savedProfile);
+
+            return {
+                ...defaultProfile,
+                ...parsedProfile
+            };
+        }
+    } catch (error) {
+        console.error('Failed to load profile:', error);
+    }
+
+    return { ...defaultProfile };
+};
+
+// Profile displayed in Sidebar
+const profile = reactive<AdminProfile>(loadProfile());
+
+// Editable form
+const form = reactive<AdminProfile>({
+    ...profile
+});
+
+const isProfileOpen = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+const digitalClock = ref('');
+
+let clockInterval: ReturnType<typeof setInterval> | undefined;
+
+// Update digital clock
+const updateClock = () => {
+    digitalClock.value = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+};
+
+// Open modal and copy saved profile into the form
+const openProfileModal = () => {
+    Object.assign(form, profile);
+    isProfileOpen.value = true;
+};
+
+// Close modal without saving
+const closeProfileModal = () => {
+    Object.assign(form, profile);
+    isProfileOpen.value = false;
+
+    if (fileInput.value) {
+        fileInput.value.value = '';
+    }
+};
+
+// Open file picker
+const triggerFileInput = () => {
+    fileInput.value?.click();
+};
+
+// Handle profile picture upload
+const handleAvatarChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+
+    if (!file) return;
+
+    const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+        alert('Please upload a JPG, PNG, or WebP image.');
+        target.value = '';
+        return;
+    }
+
+    const maxSize = 2 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+        alert('Image size must not exceed 2 MB.');
+        target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+        if (typeof reader.result === 'string') {
+            form.avatar = reader.result;
+        }
+
+        target.value = '';
     };
 
-    currentDate.value = new Date().toLocaleDateString(
-        'en-US',
-        options
-    );
+    reader.onerror = () => {
+        alert('Failed to load the profile picture.');
+        target.value = '';
+    };
+
+    reader.readAsDataURL(file);
+};
+
+// Save profile and update Sidebar
+const saveProfile = () => {
+    if (!form.name.trim()) {
+        alert('Full name cannot be empty.');
+        return;
+    }
+
+    if (!form.email.trim()) {
+        alert('Email cannot be empty.');
+        return;
+    }
+
+    const updatedProfile: AdminProfile = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        timezone: form.timezone.trim(),
+        workingHours: form.workingHours.trim(),
+        title: form.title.trim(),
+        avatar: form.avatar || '/assets/regi.jpg',
+
+        // This value changes only when Save changes is clicked.
+        lastUpdated: new Date().toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    };
+
+    try {
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(updatedProfile)
+        );
+
+        Object.assign(profile, updatedProfile);
+        Object.assign(form, updatedProfile);
+
+        isProfileOpen.value = false;
+    } catch (error) {
+        console.error('Failed to save profile:', error);
+        alert(
+            'Failed to save profile. The image may be too large for browser storage.'
+        );
+    }
 };
 
 onMounted(() => {
-    updateDate();
+    updateClock();
+
+    clockInterval = setInterval(() => {
+        updateClock();
+    }, 1000);
+});
+
+onUnmounted(() => {
+    if (clockInterval) {
+        clearInterval(clockInterval);
+    }
 });
 </script>
 
@@ -232,7 +437,7 @@ onMounted(() => {
 }
 
 
-/*MODAL HEADER*/
+/* MODAL HEADER */
 
 .modal-header {
     display: flex;
@@ -325,6 +530,7 @@ onMounted(() => {
     font-family: 'Poppins', sans-serif;
     font-size: 0.85rem;
     outline: none;
+
     transition:
         border-color 0.3s ease,
         box-shadow 0.3s ease,
@@ -344,14 +550,22 @@ onMounted(() => {
         0 0 0 3px rgba(245, 128, 32, 0.10);
 }
 
+.form-side input::placeholder {
+    color: #a0a8b5;
+    opacity: 1;
+}
 
-/* ROW*/
+
+/* ROW */
 
 .row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
+
+
+/* PREVIEW */
 
 .preview-side {
     text-align: center;
@@ -376,14 +590,16 @@ onMounted(() => {
 .avatar {
     width: 100px;
     height: 100px;
-
     border-radius: 50%;
     object-fit: cover;
-
     border: 3px solid #ffffff;
 
     box-shadow:
         0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.hidden-file-input {
+    display: none;
 }
 
 .edit-badge {
@@ -400,8 +616,10 @@ onMounted(() => {
     color: #ffffff;
     border: 3px solid #ffffff;
     cursor: pointer;
+
     box-shadow:
         0 3px 8px rgba(245, 128, 32, 0.25);
+
     transition:
         background-color 0.25s ease,
         box-shadow 0.25s ease,
@@ -410,8 +628,10 @@ onMounted(() => {
 
 .edit-badge:hover {
     background: #e56f10;
+
     box-shadow:
         0 5px 12px rgba(245, 128, 32, 0.35);
+
     transform: scale(1.08);
 }
 
@@ -424,6 +644,8 @@ onMounted(() => {
 }
 
 .preview-side h4 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
     margin: 5px 0 4px;
     font-size: 1.05rem;
     font-weight: 600;
@@ -431,13 +653,38 @@ onMounted(() => {
 }
 
 .preview-side .role {
+    max-width: 100%;
+    overflow-wrap: anywhere;
     color: #888;
     font-size: 0.82rem;
     margin: 0;
 }
 
 
-/*FOOTER*/
+/* DIGITAL CLOCK */
+
+.digital-clock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 16px;
+    padding: 9px 12px;
+    border: 1px solid #e5eeee;
+    border-radius: 9px;
+    background: #f5fafa;
+    color: #018181;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.digital-clock i {
+    font-size: 13px;
+}
+
+
+/* FOOTER */
 
 .modal-footer {
     display: flex;
@@ -461,7 +708,8 @@ onMounted(() => {
     gap: 10px;
 }
 
-/* Base button */
+
+/* BASE BUTTON */
 
 .actions button {
     height: 42px;
@@ -475,6 +723,7 @@ onMounted(() => {
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
+
     transition:
         background-color 0.25s ease,
         color 0.25s ease,
@@ -488,6 +737,7 @@ onMounted(() => {
     background: #ffffff;
     color: #64748b;
     border: 1px solid #e2e8f0;
+
     box-shadow:
         0 1px 2px rgba(15, 23, 42, 0.04);
 }
@@ -496,13 +746,16 @@ onMounted(() => {
     background: #f8fafc;
     color: #334155;
     border-color: #cbd5e1;
+
     box-shadow:
         0 4px 10px rgba(15, 23, 42, 0.08);
+
     transform: translateY(-1px);
 }
 
 .btn-cancel:active {
     transform: translateY(0);
+
     box-shadow:
         0 2px 5px rgba(15, 23, 42, 0.06);
 }
@@ -512,6 +765,7 @@ onMounted(() => {
     background: #018181;
     color: #ffffff;
     border: 1px solid #018181;
+
     box-shadow:
         0 3px 8px rgba(1, 129, 129, 0.18);
 }
@@ -519,24 +773,27 @@ onMounted(() => {
 .btn-save:hover {
     background: #016f6f;
     border-color: #016f6f;
+
     box-shadow:
         0 6px 14px rgba(1, 129, 129, 0.25);
+
     transform: translateY(-1px);
 }
 
 .btn-save:active {
     background: #015f5f;
     transform: translateY(0);
+
     box-shadow:
         0 2px 6px rgba(1, 129, 129, 0.18);
 }
 
-/*ICON*/
+
+/* ICON */
 
 .actions button i {
     font-size: 13px;
-    transition:
-        transform 0.25s ease;
+    transition: transform 0.25s ease;
 }
 
 .btn-save:hover i {
@@ -548,7 +805,7 @@ onMounted(() => {
 }
 
 
-/*RESPONSIVE*/
+/* RESPONSIVE */
 
 @media (max-width: 600px) {
 
@@ -627,3 +884,4 @@ onMounted(() => {
     }
 }
 </style>
+```

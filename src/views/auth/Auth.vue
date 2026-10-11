@@ -223,7 +223,7 @@ input:focus {
 }
 
 .auth-container {
-    --background: url('/assets/BG.png') no-repeat center center / cover;
+    --background: url('/assets/BG.webp') no-repeat center center / cover;
 }
 
 .main-wrapper {

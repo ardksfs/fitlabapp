@@ -1,3 +1,4 @@
+
 <template>
     <div class="sidebar-wrapper">
         <!-- Header: Logo & Tagline -->
@@ -17,11 +18,13 @@
 
         <!-- Profil User -->
         <div class="sidebar-profile" @click="emit('openProfile')">
-            <img src="/assets/regi.jpg" class="avatar" />
+            <img :src="profile.avatar || '/assets/regi.jpg'" class="avatar" alt="Profile" />
+
             <div class="profile-info">
-                <span class="user-name">Admin Fitlab</span>
-                <span class="user-email">admin@admin.com</span>
+                <span class="user-name">{{ profile.name }}</span>
+                <span class="user-email">{{ profile.email }}</span>
             </div>
+
             <i class="fa-solid fa-ellipsis-vertical"></i>
         </div>
 
@@ -39,6 +42,24 @@
 import { useRouter } from 'vue-router';
 import { menuController } from '@ionic/vue';
 
+interface AdminProfile {
+    name: string;
+    email: string;
+    timezone: string;
+    workingHours: string;
+    title: string;
+    avatar: string;
+    lastUpdated: string;
+}
+
+defineProps<{
+    profile: AdminProfile;
+}>();
+
+const emit = defineEmits<{
+    (event: 'openProfile'): void;
+}>();
+
 const router = useRouter();
 
 const menuItems = [
@@ -53,9 +74,8 @@ const menuItems = [
     { title: 'Report', url: '/admin/reports', icon: 'bx bx-file-report' },
     { title: 'Settings', url: '/admin/settings', icon: 'bx bx-cog' },
 ];
-const emit = defineEmits(['openProfile']);
-const openProfileModal = () => emit('openProfile');
-// Fungsi close sidebar 
+
+// Fungsi close sidebar
 const closeMenuOnMobile = async () => {
     if (window.innerWidth < 992) {
         await menuController.close('main-menu');
@@ -172,23 +192,28 @@ const handleLogout = async () => {
     height: 40px;
     border-radius: 50%;
     margin-right: 12px;
+    object-fit: cover;
+    flex-shrink: 0;
 }
 
 .profile-info {
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-width: 0;
 }
 
 .user-name {
     font-weight: 600;
     font-size: 0.9rem;
     color: #1e293b;
+    overflow-wrap: anywhere;
 }
 
 .user-email {
     font-size: 0.75rem;
     color: #64748b;
+    overflow-wrap: anywhere;
 }
 
 .sidebar-profile {
@@ -203,19 +228,47 @@ const handleLogout = async () => {
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
+
 .sidebar-footer {
     padding-top: 12px;
     border-top: 1px solid #f1f5f9;
     margin-top: auto;
 }
+
 .logout-btn {
     color: #ef4444;
 }
+
 .logout-btn:hover {
     background: #fef2f2;
     color: #dc2626;
 }
+
 .logout-btn:hover i {
     color: #dc2626;
+}
+
+/* Responsive HP */
+@media (max-width: 480px) {
+    .sidebar-wrapper {
+        padding: 20px 12px;
+    }
+
+    .logo {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .sidebar-profile {
+        padding: 12px 8px;
+    }
+
+    .user-name {
+        font-size: 0.85rem;
+    }
+
+    .user-email {
+        font-size: 0.7rem;
+    }
 }
 </style>
