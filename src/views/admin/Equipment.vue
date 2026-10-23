@@ -1,3 +1,4 @@
+
 <template>
     <ion-page>
         <ion-content class="page-bg">
@@ -311,9 +312,9 @@
                 </div>
             </div>
 
-        </ion-content>
+        </ion-content> 
     </ion-page>
-</template>
+</template> 
 
 <script setup lang="ts">
 
@@ -366,7 +367,7 @@ const equipments = ref<Equipment[]>([
         name: 'Treadmill Pro X1',
         brand: 'Life Fitness',
         purchase: '2026-01-15',
-        maintenance: '2026-09-10',
+        maintenance: '2026-10-25',
         condition: 'Excellent',
         cost: 15000000
     },
@@ -376,7 +377,7 @@ const equipments = ref<Equipment[]>([
         name: 'Bench Press',
         brand: 'Technogym',
         purchase: '2025-08-20',
-        maintenance: '2026-08-25',
+        maintenance: '2026-10-25',
         condition: 'Good',
         cost: 8500000
     }
@@ -626,8 +627,8 @@ const getConditionClass = (
 
 </script>
 
-<style scoped>
-
+<style scoped> 
+/*
 
 .page-bg {
     --background: #f8fafc;
@@ -1231,83 +1232,58 @@ tbody tr:hover {
 
 
     .btn-green {
-
         width: 100%;
-
         justify-content: center;
-
     }
 
 
     .table-scroll {
-
         width: 100%;
-
         overflow-x: scroll;
-
         overflow-y: hidden;
-
         -webkit-overflow-scrolling: touch;
-
         touch-action: pan-x;
-
     }
 
 
     table {
-
         width: 950px;
-
         min-width: 950px;
-
     }
 
 
     th {
-
         padding: 13px 12px;
-
     }
 
 
     td {
-
         padding: 12px;
-
     }
 
 
     .modal {
-
         max-width: 100%;
-
         padding: 25px 20px;
-
     }
 
 
     .modal-form {
-
         grid-template-columns: 1fr;
-
     }
 
 
     .modal-actions {
-
         flex-direction: column-reverse;
-
     }
 
 
     .btn-cancel,
     .btn-save,
     .btn-confirm-delete {
-
         width: 100%;
-
     }
 
 }
 
-</style>
+</style> */

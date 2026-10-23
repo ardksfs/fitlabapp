@@ -13,6 +13,7 @@
 const currentYear = new Date().getFullYear()
 </script>
 
+
 <style scoped>
 .app-footer {
     width: 100%;

@@ -1,7 +1,6 @@
 <template>
     <ion-app>
 
-        <!-- Global Loading -->
         <Transition name="page-loading">
             <div v-if="isLoading" class="page-loading">
                 <div class="loading-circle"></div>

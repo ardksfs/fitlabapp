@@ -66,48 +66,220 @@
         </ion-content>
     </ion-page>
 </template>
-
+```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { IonPage, IonContent, IonMenuButton } from '@ionic/vue';
+import {
+    IonPage,
+    IonContent,
+    IonMenuButton,
+} from '@ionic/vue';
 import ChartWrapper from '../../components/ChartWrapper.vue';
-import AppFooter from '@/components/AppFooter.vue'
+import AppFooter from '@/components/AppFooter.vue';
+
 const isProfileOpen = ref(false); // for popup profile
 
 const stats = [
-    { title: 'Total Member', value: '2', icon: 'bx bx-group', color: '#3B82F6' },
-    { title: 'Member Active', value: '2', icon: 'bx bx-user-square', color: '#22C55E' },
-    { title: 'Attendance', value: '0', icon: 'fa-regular fa-calendar-days', color: '#14B8A6' },
-    { title: 'Monthly Revenue', value: 'Rp 3.000.000', icon: 'fa-solid fa-rupiah-sign', color: '#F59E0B' },
-    { title: 'Personal Trainer', value: '2', icon: 'fa-solid fa-user-tie', color: '#8B5CF6' },
-    { title: 'Non Active', value: '2', icon: 'bx bx-user-hexagon', color: '#EF4444' },
+    {
+        title: 'Total Member',
+        value: '4',
+        icon: 'bx bx-group',
+        color: '#018181',
+    },
+    {
+        title: 'Member Active',
+        value: '4',
+        icon: 'bx bx-user-square',
+        color: '#22A699',
+    },
+    {
+        title: 'Attendance',
+        value: '3',
+        icon: 'fa-regular fa-calendar-days',
+        color: '#54B4AC',
+    },
+    {
+        title: 'Monthly Revenue',
+        value: 'Rp 2.450.000',
+        icon: 'fa-solid fa-rupiah-sign',
+        color: '#D6A64F',
+    },
+    {
+        title: 'Personal Trainer',
+        value: '1',
+        icon: 'fa-solid fa-user-tie',
+        color: '#398F8F',
+    },
+    {
+        title: 'Non Active',
+        value: '0',
+        icon: 'bx bx-user-hexagon',
+        color: '#D97777',
+    },
 ];
 
 // Chart Options
-const barOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } };
-const lineOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
-const pieOptions = { responsive: true, maintainAspectRatio: false };
+const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        y: {
+            beginAtZero: true,
+            grid: {
+                color: 'rgba(1, 129, 129, 0.10)',
+            },
+            ticks: {
+                color: '#647878',
+            },
+        },
+        x: {
+            grid: {
+                display: false,
+            },
+            ticks: {
+                color: '#647878',
+            },
+        },
+    },
+    plugins: {
+        legend: {
+            labels: {
+                color: '#334747',
+                usePointStyle: true,
+                padding: 18,
+            },
+        },
+    },
+};
 
-// Data 
-const revenueData = { 
-    labels: ['Paid', 'Pending'], 
-    datasets: [{ 
-        label: 'Revenue', // 
-        data: [6000, 2000], 
-        backgroundColor: ['#3B82F6', '#e2e8f0'] 
-    }] 
+const lineOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            display: false,
+        },
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            grid: {
+                color: 'rgba(1, 129, 129, 0.10)',
+            },
+            ticks: {
+                color: '#647878',
+            },
+        },
+        x: {
+            grid: {
+                display: false,
+            },
+            ticks: {
+                color: '#647878',
+            },
+        },
+    },
 };
-const growthData = { 
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], 
-    datasets: [{ data: [10, 18, 30, 42, 60, 0], borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true, tension: 0.4 }] 
+
+const pieOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'bottom' as const,
+            labels: {
+                color: '#334747',
+                padding: 18,
+                usePointStyle: true,
+            },
+        },
+    },
 };
-const attendanceData = { 
-    labels: ['Present', 'Late', 'Absent'], 
-    datasets: [{ data: [85, 10, 5], backgroundColor: ['#2563eb', '#f43f5e', '#f59e0b'] }] 
+
+// Monthly Revenue
+const revenueData = {
+    labels: ['Paid', 'Pending'],
+    datasets: [
+        {
+            label: 'Revenue',
+            data: [5000, 1000],
+            backgroundColor: [
+                '#018181',
+                '#DCE9E9',
+            ],
+            hoverBackgroundColor: [
+                '#006B6B',
+                '#C5D9D9',
+            ],
+            borderRadius: 8,
+            borderSkipped: false,
+        },
+    ],
 };
-const plansData = { 
-    labels: ['Gold', 'Premium'], 
-    datasets: [{ data: [45, 55], backgroundColor: ['#2563eb', '#f43f5e'] }] 
+
+// Member Growth
+const growthData = {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    datasets: [
+        {
+            data: [10, 18, 30, 42, 60, 0],
+            borderColor: '#018181',
+            backgroundColor: 'rgba(1, 129, 129, 0.15)',
+            pointBackgroundColor: '#018181',
+            pointBorderColor: '#FFFFFF',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            fill: true,
+            tension: 0.4,
+        },
+    ],
+};
+
+// Attendance Analytics
+const attendanceData = {
+    labels: ['Present', 'Late', 'Absent'],
+    datasets: [
+        {
+            data: [85, 18, 10],
+            backgroundColor: [
+                '#018181',
+                '#F4B860',
+                '#E57373',
+            ],
+            hoverBackgroundColor: [
+                '#006B6B',
+                '#E5A447',
+                '#D95C5C',
+            ],
+            borderColor: '#FFFFFF',
+            borderWidth: 3,
+            hoverOffset: 8,
+        },
+    ],
+};
+
+// Membership Distribution
+const plansData = {
+    labels: ['Gold', 'Premium', 'Basic'],
+    datasets: [
+        {
+            data: [45, 30, 20],
+            backgroundColor: [
+                '#018181',
+                '#54B4AC',
+                '#DCE9E9',
+            ],
+            hoverBackgroundColor: [
+                '#006B6B',
+                '#379B93',
+                '#C5D9D9',
+            ],
+            borderColor: '#FFFFFF',
+            borderWidth: 3,
+            hoverOffset: 8,
+        },
+    ],
 };
 </script>
 

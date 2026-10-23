@@ -4,6 +4,7 @@
     </div>
 </template>
 
+
 <style scoped>
 .fitlab-card {
     background: white;

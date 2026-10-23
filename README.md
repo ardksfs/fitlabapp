@@ -21,22 +21,28 @@ A modern, responsive gym management dashboard built with **Vue.js 3**, **Ionic F
 
 The dashboard brings together member records, trainer information, attendance, payments, equipment inventory, and gym performance analytics in one place. Its responsive layout is designed for both desktop and mobile screens.
 
+FitLab also supports separate dashboard experiences for gym administrators, members, and personal trainers, helping each role access relevant information and features.
+
 ## ✨ Features
 
 | Feature | Description |
 |---|---|
 | 📊 **Dashboard Analytics** | Charts for gym performance, revenue, member growth, and attendance. |
+| 🧑‍💻 **User Dashboard** | Provide members with access to relevant membership and fitness information. |
+| 💪 **Personal Trainer Dashboard** | Provide personal trainers with a dedicated interface for trainer-related information and activities. |
+| 📲 **QR Code Integration** |Support QR-code-related workflows for gym access or attendance, depending on the implemented functionality. |
 | 👥 **Member Management** | Manage member records through CRUD interfaces and responsive tables. |
 | 🏋️ **Trainer Management** | Organize trainer information and management views. |
 | 🗓️ **Attendance Tracking** | Record and review daily member attendance. |
 | 💳 **Payment & Billing** | Manage payment records and view payment history. |
-| 🧰 **Equipment Inventory** | Track equipment condition and maintenance information. |
 | 👤 **Profile Management** | Edit profile details and preview profile changes. |
 | 🖼️ **Profile Picture** | Change the profile picture and preview it before saving. |
 | 🕒 **Digital Clock** | Display a live digital clock in the profile preview. |
 | 📱 **Responsive Interface** | Mobile-friendly navigation and desktop-friendly layouts. |
 
-> **Note:** The availability of each feature depends on the current implementation. A UI feature does not necessarily mean that backend services or database integration are already connected.
+
+> **Note:** The availability of each feature depends on the current implementation. A UI feature does not necessarily mean that backend services or database integration are already connected. There is an important limitation: `localStorage` can be used for integration only if both dashboards are opened in the same browser and share the same origin. If FitLab is accessed from a different device or account, a backend or database will be required to ensure the data is properly synchronized.
+
 
 ## 🛠️ Tech Stack
 
@@ -44,10 +50,11 @@ The dashboard brings together member records, trainer information, attendance, p
 - **UI Framework:** Ionic Framework
 - **Language:** TypeScript
 - **Build Tool:** Vite
+- **QR Code:** qrcode.vue
 - **Charts:** Chart.js and Vue-Chartjs
 - **Icons:** Font Awesome and Boxicons
 - **Styling:** CSS
-- **Profile Persistence:** Browser `localStorage` for the current profile implementation
+- **Profile Persistence & User Sign in:** Browser `localStorage` for the current profile implementation
 
 ## 🎨 Color Palette
 
@@ -59,6 +66,39 @@ FitLab uses a teal-and-orange visual identity.
 | 🟠 Safety Orange | `#F58020` | Accent color and hover states |
 | ⚫ Rich Black | `#0A1819` | Dark text and backgrounds |
 | ◼️ Gunmetal | `#203333` | Secondary dark surfaces |
+
+## Authentication & Role Validation
+
+FitLab provides role-based login flows for Members, Administrators, and
+Personal Trainers. Each role uses the same authentication page with a
+different interface depending on the selected login route.
+
+### Login Portals
+
+| Role | Login Route | Access |
+|---|---|---|
+| Member | `/login` | Sign In and Sign Up |
+| Admin | `/login?role=admin` | Sign In only |
+| Personal Trainer | `/login?role=pt` | Sign In only |
+
+### Role Validation
+
+- **Member:** Can sign in or create a new account through the Member login page.
+- **Admin:** Must authenticate using an account assigned to the `admin` role.
+- **Personal Trainer:** Must authenticate using an account assigned to the `pt` role.
+- **Registration:** Newly registered accounts are assigned the `member` role.
+- **Access Control:** The requested staff portal must match the account's assigned role.
+- **Login Interface:** Admin and Personal Trainer use a dedicated Staff Portal
+  design, while the original Member login and registration interface is preserved.
+
+### Staff Portal Features
+
+- Dedicated login interface for Admin and Personal Trainer.
+- Role-specific portal headings.
+- Email and password authentication.
+- Authorized staff accounts checkbox.
+- Responsive desktop and mobile layouts.
+- Shared application footer across the login interfaces.
 
 ## 🚀 Getting Started
 
@@ -100,8 +140,15 @@ If `chart.js` and `vue-chartjs` are not already included in `package.json`, inst
 ```bash
 npm install chart.js vue-chartjs
 ```
+### 5.  Install QR Code Dependency
+FitLab uses qrcode.vue for QR-code-related functionality. The dependency is already present in the current project package list.
 
-### 5. Start the Development Server
+If it is missing from your local installation, install it with:
+
+```bash
+npm install qrcode.vue
+```
+### 6. Start the Development Server
 
 For a standard Vite setup:
 
@@ -115,9 +162,9 @@ If the project is configured to use the Ionic CLI, you can also run:
 ionic serve
 ```
 
-Open the local URL shown in your terminal. Vite commonly uses `http://localhost:5173`, while Ionic may use a different port.
+Open the local URL shown in your terminal. Vite commonly uses `http://localhost:`, while Ionic may use a different port.
 
-### 6. Build for Production
+### 7. Build for Production
 
 ```bash
 npm run build
@@ -135,9 +182,9 @@ The following is a general guide. The exact structure may vary as development co
 
 ```text
 fitlabapp/
-├── public/                 # Public static files
+├── public/
+    ├── assets/             # Images, logos, and other assets
 ├── src/
-│   ├── assets/             # Images, logos, and other assets
 │   ├── components/         # Reusable components, e.g. Sidebar
 │   ├── layouts/            # Shared layouts, e.g. AdminLayout
 │   ├── router/             # Route configuration
@@ -187,6 +234,7 @@ Potential enhancements for future versions:
 - 📈 More detailed analytics and reports
 - 🔔 Membership and payment notifications
 - 🧾 Exportable reports and payment receipts
+- 📷 QR-code attendance verification
 - 🧪 Automated testing and validation
 
 ## 🤝 Contributing

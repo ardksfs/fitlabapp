@@ -1178,7 +1178,6 @@ td {
         min-width: 900px;
         width: 900px;
     }
-
 }
 
 </style>

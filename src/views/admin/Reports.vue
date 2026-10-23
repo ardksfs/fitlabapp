@@ -201,7 +201,6 @@ const selectReport = (report: string) => {
     font-size: 24px;
 }
 
-
 .header-nav {
     display: flex;
     align-items: center;

@@ -364,12 +364,12 @@ interface Member {
 
 const members = ref<Member[]>([
     {
-        id: 'MEM-1001',
-        name: 'Jokohwy',
+        id: 'MEM-001',
+        name: 'HAFIZH MUHAMMAD NAUFAL SIDQI',
         age: 28,
         gender: 'Male',
         phone: '9876543210',
-        email: 'jokohwy@example.com',
+        email: 'hafiz@example.com',
         address: 'Jakarta',
         height: 175,
         weight: 72,
@@ -381,12 +381,12 @@ const members = ref<Member[]>([
         medicalNotes: 'No medical history'
     },
     {
-        id: 'MEM-1002',
-        name: 'Gybrian',
+        id: 'MEM-002',
+        name: 'REIFAL ARIZALDI',
         age: 25,
-        gender: 'Female',
+        gender: 'Male',
         phone: '9991112233',
-        email: 'gybrian@example.com',
+        email: 'reifal@example.com',
         address: 'Bandung',
         height: 163,
         weight: 58,
@@ -396,7 +396,41 @@ const members = ref<Member[]>([
         status: 'Active',
         expiry: '2026-11-20',
         medicalNotes: 'No medical history'
-    }
+    },
+    {
+        id: 'MEM-003',
+        name: 'FIKRI TAQY PRAWITOHADI',
+        age: 30,
+        gender: 'Male',
+        phone: '9123456780',
+        email: 'fikri@example.com',
+        address: 'Bekasi',
+        height: 173,
+        weight: 50,
+        goal: 'Weight Loss',
+        plan: 'Premium',
+        joinDate: '2026-02-15',
+        status: 'Active',
+        expiry: '2026-11-20',
+        medicalNotes: 'No medical history'
+    },
+    {
+        id: 'MEM-004',
+        name: 'JEREMY FELIX HERMANTO',
+        age: 25,
+        gender: 'Male',
+        phone: '9991112233',
+        email: 'jeremy@example.com',
+        address: 'Bandung',
+        height: 183,
+        weight: 65,
+        goal: 'Weight Loss',
+        plan: 'Premium',
+        joinDate: '2026-02-15',
+        status: 'Active',
+        expiry: '2026-11-20',
+        medicalNotes: 'No medical history'
+    },
 ]);
 
 /* ADD MEMBER */

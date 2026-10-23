@@ -1,6 +1,6 @@
-```vue
+
 <template>
-    <ion-page>
+    <ion-page class="admin-layout">
         <ion-split-pane content-id="main-content" when="lg" class="custom-split-pane">
 
             <ion-menu
@@ -214,8 +214,8 @@ const STORAGE_KEY = 'fitlab-admin-profile';
 
 const defaultProfile: AdminProfile = {
     name: 'Admin Fitlab',
-    email: 'admin@admin.com',
-    timezone: 'GMT-8',
+    email: 'admin@fitlab.com',
+    timezone: 'GMT-7',
     workingHours: '10 AM - 6 PM',
     title: 'System Administrator',
     avatar: '/assets/regi.jpg',
@@ -399,6 +399,7 @@ onUnmounted(() => {
         clearInterval(clockInterval);
     }
 });
+
 </script>
 
 <style scoped>
@@ -883,5 +884,15 @@ onUnmounted(() => {
         flex: none;
     }
 }
+
+.admin-layout :deep(ion-content::part(scroll)) {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.admin-layout :deep(ion-content::part(scroll)::-webkit-scrollbar) {
+    display: none;
+    width: 0;
+    height: 0;
+}
 </style>
-```

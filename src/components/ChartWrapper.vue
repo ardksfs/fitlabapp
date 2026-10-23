@@ -20,6 +20,7 @@ const chartComponent = {
 }[props.type as string];
 </script>
 
+
 <style scoped>
 .chart-container {
     position: relative;

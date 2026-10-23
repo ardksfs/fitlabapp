@@ -236,7 +236,6 @@ import AppFooter from '@/components/AppFooter.vue'
     align-items: center;
 }
 
-
 .hamburger-mobile {
     --background: transparent;
     --background-hover: transparent;

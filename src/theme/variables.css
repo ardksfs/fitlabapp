@@ -1,4 +1,5 @@
 :root {
+    
     --ion-color-teal: #018181;
     --ion-color-teal-rgb: 1, 129, 129;
     --ion-font-family: 'Poppins', sans-serif;
@@ -7,4 +8,5 @@
     --gunmetal: #203333;
     --white: #fcfcfc;
     --rich-black: #0a1819;
+
 }

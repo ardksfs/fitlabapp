@@ -69,11 +69,12 @@ const menuItems = [
     { title: 'Trainer', url: '/admin/trainers', icon: 'fa-solid fa-user-tie' },
     { title: 'Attendance', url: '/admin/attendance', icon: 'fa-regular fa-calendar-days' },
     { title: 'Payment', url: '/admin/payments', icon: 'bx bx-wallet-alt' },
-    { title: 'Equipment', url: '/admin/equipment', icon: 'fa-solid fa-toolbox' },
+    /*{ title: 'Equipment', url: '/admin/equipment', icon: 'fa-solid fa-toolbox' },*/
     { title: 'Analytics', url: '/admin/analytics', icon: 'bx bx-doughnut-chart' },
     { title: 'Report', url: '/admin/reports', icon: 'bx bx-file-report' },
     { title: 'Settings', url: '/admin/settings', icon: 'bx bx-cog' },
 ];
+
 
 // Fungsi close sidebar
 const closeMenuOnMobile = async () => {
@@ -84,8 +85,16 @@ const closeMenuOnMobile = async () => {
 
 const handleLogout = async () => {
     await menuController.close('main-menu');
-    router.push('/login');
+
+    localStorage.removeItem('fitlab_session');
+
+    await router.replace({
+        path: '/login',
+        query: { role: 'admin' }
+    });
 };
+
+
 </script>
 
 <style scoped>

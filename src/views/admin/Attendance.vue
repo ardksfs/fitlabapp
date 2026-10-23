@@ -401,15 +401,29 @@ const updateCurrentDateTime = () => {
 const records = ref<AttendanceRecord[]>([
     {
         id: 1,
-        member: 'Jokohwy',
-        date: '2026-10-08',
+        member: 'JEREMY FELIX HERMANTO',
+        date: '2026-10-20',
         time: '07:00',
         status: 'Present'
     },
     {
         id: 2,
-        member: 'Gybrian',
-        date: '2026-10-08',
+        member: 'FIKRI TAQY PRAWITOHADI',
+        date: '2026-10-20',
+        time: '07:15',
+        status: 'Late'
+    },
+    {
+        id: 3,
+        member: 'REIFAL ARIZALDI',
+        date: '2026-10-20',
+        time: '07:30',
+        status: 'Absent'
+    },
+    {
+        id: 4,
+        member: 'HAFIZH MUHAMMAD NAUFAL SIDQI',
+        date: '2026-10-20',
         time: '08:00',
         status: 'Present'
     }

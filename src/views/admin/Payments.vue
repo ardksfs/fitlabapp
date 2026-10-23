@@ -275,7 +275,7 @@ const payments = ref<Payment[]>([
     {
         id: 1,
         invoice: 'INV-01',
-        member: 'Jokohwy',
+        member: 'JEREMY FELIX HERMANTO',
         amount: 250000,
         method: 'Qris',
         status: 'Paid',
@@ -285,11 +285,31 @@ const payments = ref<Payment[]>([
     {
         id: 2,
         invoice: 'INV-02',
-        member: 'Gybrian',
+        member: 'FIKRI TAQY PRAWITOHADI',
         amount: 150000,
         method: 'Cash',
         status: 'Paid',
         date: '2026-10-08'
+    },
+
+    {
+        id: 3,
+        invoice: 'INV-03',
+        member: 'HAFIZH MUHAMMAD NAUFAL SIDQI',
+        amount: 200000,
+        method: 'Bank Transfer',
+        status: 'Pending',
+        date: '2026-10-09'
+    },
+    
+    {
+        id: 4,
+        invoice: 'INV-04',
+        member: 'REIFAL ARIZALDI',
+        amount: 300000,
+        method: 'Qris',
+        status: 'Paid',
+        date: '2026-10-09'
     }
 ]);
 
