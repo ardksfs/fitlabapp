@@ -78,10 +78,13 @@ const routes: Array<RouteRecordRaw> = [
         path: 'payments',
         component: () => import('../views/admin/Payments.vue'),
       },
+      
+      /*
       {
         path: 'equipment',
         component: () => import('../views/admin/Equipment.vue'),
-      },
+      }, */
+
       {
         path: 'analytics',
         component: () => import('../views/admin/Analytics.vue'),
