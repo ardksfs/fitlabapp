@@ -628,7 +628,6 @@ const getConditionClass = (
 </script>
 
 <style scoped> 
-/*
 
 .page-bg {
     --background: #f8fafc;
@@ -1286,4 +1285,4 @@ tbody tr:hover {
 
 }
 
-</style> */
+</style> 
