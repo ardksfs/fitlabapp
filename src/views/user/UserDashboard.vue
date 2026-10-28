@@ -42,11 +42,13 @@
                             Stay consistent, keep moving, and become the best version of yourself.
                         </p>
                         <div class="banner-actions">
-                            <button class="primary-btn" @click="openModal('workout')">
-                                <ion-icon :icon="barbellOutline" />
-                                View Workout Plan
+                            <button class="primary-btn" @click="openModal(hasMembership ? 'workout' : 'membershipPlans')">
+                                <ion-icon :icon="hasMembership ? barbellOutline : ribbonOutline" />
+                                {{ hasMembership ? 'View Workout Plan' : 'View Membership Plan' }}
                             </button>
-                            <button class="qr-launch-btn" aria-label="Open gym access QR" title="Gym Access QR"
+                            <button class="qr-launch-btn" :class="{ 'access-blocked': !hasMembership }"
+                                :aria-label="hasMembership ? 'Open gym access QR' : 'Gym access unavailable'"
+                                :title="hasMembership ? 'Gym Access QR' : 'Buy membership first'"
                                 @click="openQrModal">
                                 <i class="bx bx-qr-scan" aria-hidden="true"></i>
                             </button>
@@ -60,22 +62,22 @@
 
                 <!-- Membership status -->
                 <section class="membership-strip">
-                    <div class="membership-icon">
+                    <div class="membership-icon" :class="{ 'membership-inactive-icon': !hasMembership }">
                         <ion-icon :icon="ribbonOutline" />
                     </div>
 
                     <div class="membership-info">
                         <span>YOUR MEMBERSHIP</span>
-                        <strong>{{ membership.plan }}</strong>
-                        <small>{{ membership.daysLeft }} days remaining</small>
+                        <strong>{{ hasMembership ? membership.plan : 'You’re not a member yet' }}</strong>
+                        <small>{{ hasMembership ? `${membership.daysLeft} days remaining` : 'Choose a plan to unlock member features' }}</small>
                     </div>
 
-                    <div class="membership-status" :class="membership.status">
-                        {{ membership.statusLabel }}
+                    <div class="membership-status" :class="hasMembership ? membership.status : 'inactive'">
+                        {{ hasMembership ? membership.statusLabel : 'Inactive' }}
                     </div>
 
-                    <button class="text-btn" @click="openModal('membership')">
-                        View Details <ion-icon :icon="arrowForwardOutline" />
+                    <button class="text-btn" @click="handleMembershipDetails">
+                        View Details <ion-icon class="view-details-arrow" :icon="arrowForwardOutline" />
                     </button>
                 </section>
 
@@ -162,7 +164,7 @@
                             <p>No workout plan available yet.</p>
                         </div>
 
-                        <button class="panel-bottom-action" @click="openModal('workout')">
+                        <button class="panel-bottom-action" @click="openModal(hasMembership ? 'workout' : 'membershipPlans')">
                             Open Workout Plans <ion-icon :icon="arrowForwardOutline" />
                         </button>
                     </section>
@@ -226,7 +228,7 @@
                             <p>Your trainer has not assigned a workout plan yet.</p>
                         </div>
 
-                        <button class="panel-bottom-action" @click="openModal('workout')">
+                        <button class="panel-bottom-action" @click="openModal(hasMembership ? 'workout' : 'membershipPlans')">
                             View all workout plans <ion-icon :icon="arrowForwardOutline" />
                         </button>
                     </section>
@@ -276,7 +278,7 @@
                     </div>
 
                     <div class="quick-grid">
-                        <button class="quick-card" @click="openModal('workout')">
+                        <button class="quick-card" @click="openModal(hasMembership ? 'workout' : 'membershipPlans')">
                             <div class="quick-icon teal">
                                 <ion-icon :icon="barbellOutline" />
                             </div>
@@ -397,6 +399,50 @@
                                 <input v-model="profile.phone" type="tel" placeholder="Enter phone number" />
                             </label>
                             <label>
+                                Age
+                                <input v-model.number="profile.age" type="number" min="1" max="120" placeholder="Age" />
+                            </label>
+                            <label>
+                                Address
+                                <input v-model="profile.address" autocomplete="street-address" placeholder="Full address" />
+                            </label>
+                            <label>
+                                Height (cm)
+                                <input v-model.number="profile.height" type="number" min="50" max="260" placeholder="e.g. 170" />
+                            </label>
+                            <label class="full-width">
+                                Medical Notes
+                                <textarea v-model="profile.medicalNotes" rows="3" maxlength="1500" placeholder="Allergies, injuries, conditions, or other notes (optional)"></textarea>
+                            </label>
+                            <div class="ktp-upload-block full-width">
+                                <div class="ktp-upload-copy">
+                                    <strong>Upload KTP</strong>
+                                    <p>Upload a clear photo of your KTP. Age and address may be detected automatically; always check the OCR result before saving.</p>
+                                    <small v-if="profile.ktpFileName" class="ktp-selected-name">
+                                        Selected: {{ profile.ktpFileName }}
+                                    </small>
+                                    <small v-else class="ktp-empty-name">No KTP selected</small>
+
+                                    <div v-if="profile.ktpFileName" class="ktp-file-actions">
+                                        <button
+                                            type="button"
+                                            class="ktp-action-btn ktp-check-btn"
+                                            @click="openKtpDialog('preview')"
+                                        >
+                                            <ion-icon :icon="eyeOutline" /> Check KTP
+                                        </button>
+                                    </div>
+                                    <p v-if="ktpFeedback" class="ktp-feedback" role="status">
+                                        {{ ktpFeedback }}
+                                    </p>
+                                </div>
+
+                                <label class="upload-btn ktp-upload-btn">
+                                    <ion-icon :icon="cloudUploadOutline" /> {{ profile.ktpFileName ? 'Change KTP' : 'Upload KTP' }}
+                                    <input ref="ktpFileInput" type="file" accept="image/*" @change="uploadKtp" />
+                                </label>
+                            </div>
+                            <label>
                                 Fitness Goal
                                 <select v-model="profile.goal">
                                     <option value="Build Muscle">Build Muscle</option>
@@ -412,25 +458,53 @@
                         </form>
                     </div>
 
-                    <!-- Notifications -->
+                    <!-- Notifications: termasuk pengumuman event khusus member -->
                     <div v-else-if="activeModal === 'notifications'" class="modal-body">
                         <div v-if="notifications.length" class="notice-list">
-                            <article v-for="notice in notifications" :key="notice.id" class="notice-item"
-                                :class="{ unread: !notice.read }">
-                                <div class="notice-icon">
-                                    <ion-icon :icon="notificationsOutline" />
+                            <article
+                                v-for="notice in notifications"
+                                :key="notice.id"
+                                class="notice-item"
+                                :class="{
+                                    unread: !notice.read,
+                                    'notice-announcement': notice.kind === 'announcement',
+                                }"
+                            >
+                                <div
+                                    class="notice-icon"
+                                    :class="{ 'notice-icon-announcement': notice.kind === 'announcement' }"
+                                >
+                                    <ion-icon
+                                        :icon="notice.kind === 'announcement' ? ribbonOutline : notificationsOutline"
+                                    />
                                 </div>
-                                <div>
+
+                                <div class="notice-content">
+                                    <span v-if="notice.kind === 'announcement'" class="notice-category">
+                                        ADS ANNOUNCEMENT
+                                    </span>
                                     <strong>{{ notice.title }}</strong>
                                     <p>{{ notice.message }}</p>
                                     <small>{{ notice.date }}</small>
+
+                                    <button
+                                        v-if="notice.actionLabel && notice.actionPath"
+                                        type="button"
+                                        class="notice-action"
+                                        @click="handleNoticeAction(notice)"
+                                    >
+                                        {{ notice.actionLabel }}
+                                        <ion-icon :icon="arrowForwardOutline" />
+                                    </button>
                                 </div>
                             </article>
                         </div>
+
                         <div v-else class="empty-state">
                             <ion-icon :icon="notificationsOutline" />
                             <p>No notifications yet.</p>
                         </div>
+
                         <button v-if="unreadCount" class="secondary-btn full-width" @click="markNotificationsRead">
                             Mark All as Read
                         </button>
@@ -537,6 +611,60 @@
                         </form>
                     </div>
 
+                    <!-- Membership plan selection -->
+                    <div v-else-if="activeModal === 'membershipPlans'" class="modal-body plan-picker-body">
+                        <div class="plan-picker-heading">
+                            <span class="eyebrow">FIND YOUR FIT</span>
+                            <h3>Choose Your Gym Plan</h3>
+                            <p>Build your strength and stay consistent with a plan that fits your goals.</p>
+                        </div>
+                        <div class="membership-plan-grid">
+                            <article v-for="plan in membershipPlans" :key="plan.id" class="membership-plan-card" :class="{ featured: plan.featured }">
+                                <span v-if="plan.featured" class="plan-popular-label">POPULAR</span>
+                                <span class="plan-card-name">{{ plan.name }}</span>
+                                <div class="plan-price"><span class="rupiah-mark">Rp</span>{{ plan.price.toLocaleString('id-ID') }}<small> / {{ plan.period }}</small></div>
+                                <p class="plan-card-description">{{ plan.description }}</p>
+                                <button class="primary-btn plan-select-btn" @click="choosePlan(plan)">Choose Plan</button>
+                                <div class="plan-features-title">FEATURES</div>
+                                <ul class="plan-features"><li v-for="feature in plan.features" :key="feature"><ion-icon :icon="checkmarkCircleOutline" />{{ feature }}</li></ul>
+                            </article>
+                        </div>
+                    </div>
+
+                    <!-- Payment method selection -->
+                    <div v-else-if="activeModal === 'payment'" class="modal-body payment-body">
+                        <div class="payment-intro"><span class="eyebrow">CHECKOUT</span><h3>Payment Methods</h3><p>Selected plan: <strong>{{ selectedPlan.name }}</strong></p></div>
+                        <div class="payment-method-tabs" role="group" aria-label="Payment method">
+                            <button type="button" :class="{ selected: payment.method === 'ewallet' }" @click="payment.method = 'ewallet'"><ion-icon :icon="walletOutline" /> E-Wallet</button>
+                            <button type="button" :class="{ selected: payment.method === 'card' }" @click="payment.method = 'card'"><ion-icon :icon="cardOutline" /> Credit Card</button>
+                            <button type="button" :class="{ selected: payment.method === 'cash' }" @click="payment.method = 'cash'"><ion-icon :icon="cashOutline" /> Cash</button>
+                        </div>
+                        <form class="payment-form" @submit.prevent="confirmPayment">
+                            <template v-if="payment.method === 'ewallet'">
+                                <label>Select E-Wallet
+                                    <div class="ewallet-options">
+                                        <button v-for="wallet in ewallets" :key="wallet.id" type="button" :class="['ewallet-option', { selected: payment.wallet === wallet.id }]" @click="payment.wallet = wallet.id"><span :class="['wallet-logo', `wallet-${wallet.id}`]"><img :src="wallet.logo" :alt="`${wallet.name} logo`" /></span><span class="wallet-name">{{ wallet.name }}</span><span class="wallet-radio">{{ payment.wallet === wallet.id ? '✓' : '' }}</span></button>
+                                    </div>
+                                </label>
+                                <label>Phone number / wallet account<input v-model="payment.walletAccount" type="tel" placeholder="e.g. 08xxxxxxxxxx" required /></label>
+                                <p class="payment-hint">You’ll be asked to complete payment in your selected wallet in a live payment integration.</p>
+                            </template>
+                            <template v-else-if="payment.method === 'card'">
+                                <label>Card number<input v-model="payment.cardNumber" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="1234 5678 9012 3456" required /></label>
+                                <label>Cardholder name<input v-model="payment.cardholder" autocomplete="cc-name" placeholder="Name on card" required /></label>
+                                <div class="payment-inline-fields"><label>Expiry month<select v-model="payment.expiryMonth" required><option value="" disabled>Month</option><option v-for="month in 12" :key="month" :value="String(month).padStart(2, '0')">{{ String(month).padStart(2, '0') }}</option></select></label><label>Expiry year<select v-model="payment.expiryYear" required><option value="" disabled>Year</option><option v-for="year in expiryYears" :key="year" :value="String(year)">{{ year }}</option></select></label><label>CVC<input v-model="payment.cvc" type="password" inputmode="numeric" maxlength="4" autocomplete="cc-csc" placeholder="CVC" required /></label></div>
+                                <p class="payment-hint">Demo UI only: do not enter real card details. A PCI-compliant payment provider must process card payments in production.</p>
+                            </template>
+                            <template v-else>
+                                <div class="cash-notice"><ion-icon :icon="informationCircleOutline" /><div><strong>Cash on Delivery / Cash at Gym (Demo)</strong><p>Untuk demonstrasi website, konfirmasi ini mensimulasikan pembayaran tunai telah diterima staff. Membership akan berubah menjadi Active dan fitur QR serta View Details terbuka. Ini bukan verifikasi pembayaran sungguhan.</p></div></div>
+                                <label>Contact phone number<input v-model="payment.cashPhone" type="tel" placeholder="Phone number for confirmation" required /></label>
+                            </template>
+                            <div class="payment-summary"><div><span>{{ selectedPlan.name }}</span><strong>Rp {{ selectedPlan.price.toLocaleString('id-ID') }}</strong></div><div class="payment-total"><span>TOTAL AMOUNT</span><strong>Rp {{ selectedPlan.price.toLocaleString('id-ID') }}</strong></div></div>
+                            <p v-if="paymentMessage" class="payment-message">{{ paymentMessage }}</p>
+                            <div class="form-actions payment-actions"><button type="button" class="secondary-btn" @click="activeModal = 'membershipPlans'">Back to plans</button><button type="submit" class="primary-btn">{{ payment.method === 'cash' ? 'Confirm Cash Payment (Demo)' : 'Continue Payment' }}</button></div>
+                        </form>
+                    </div>
+
                     <!-- Membership -->
                     <div v-else-if="activeModal === 'membership'" class="modal-body">
                         <div class="membership-detail-card">
@@ -590,7 +718,135 @@
                 </div>
             </ion-modal>
 
+            <!-- KTP preview and delete confirmation: teleport above Ionic modal layers -->
+            <Teleport to="body">
+                <Transition name="member-alert">
+                    <div
+                        v-if="ktpDialogMode"
+                        class="ktp-dialog-backdrop"
+                        role="presentation"
+                        @click.self="closeKtpDialog"
+                    >
+                    <section
+                        v-if="ktpDialogMode === 'preview'"
+                        class="ktp-dialog ktp-preview-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="ktp-preview-title"
+                    >
+                        <button
+                            type="button"
+                            class="member-alert-close"
+                            aria-label="Close KTP preview"
+                            @click="closeKtpDialog"
+                        >
+                            <ion-icon :icon="closeOutline" />
+                        </button>
 
+                        <div class="ktp-dialog-heading">
+                            <span class="ktp-dialog-icon"><ion-icon :icon="eyeOutline" /></span>
+                            <div>
+                                <span class="member-alert-eyebrow">MEMBER PROFILE</span>
+                                <h3 id="ktp-preview-title">Check KTP</h3>
+                                <p class="ktp-dialog-filename">{{ profile.ktpFileName }}</p>
+                            </div>
+                        </div>
+
+                        <div v-if="ktpPreviewUrl" class="ktp-preview-stage">
+                            <img :src="ktpPreviewUrl" alt="Preview of the selected KTP image" />
+                        </div>
+                        <div v-else class="ktp-preview-unavailable">
+                            <ion-icon :icon="informationCircleOutline" />
+                            <strong>Preview is not available</strong>
+                            <p>
+                                Nama file lama masih tersimpan, tetapi gambar aslinya belum ada di penyimpanan browser. Tutup preview, pilih <b>Change KTP</b>, pilih ulang foto ini, lalu tekan <b>Save Profile</b>. Setelah itu preview bisa dibuka lagi di browser dan perangkat yang sama.
+                            </p>
+                        </div>
+
+                        <div class="ktp-dialog-actions">
+                            <button type="button" class="ktp-dialog-secondary" @click="closeKtpDialog">
+                                Close
+                            </button>
+                            <button type="button" class="ktp-dialog-danger" @click="openKtpDialog('delete')">
+                                <ion-icon :icon="trashOutline" /> Delete KTP
+                            </button>
+                        </div>
+                    </section>
+
+                    <section
+                        v-else
+                        class="ktp-dialog ktp-delete-dialog"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="ktp-delete-title"
+                        aria-describedby="ktp-delete-description"
+                    >
+                        <button
+                            type="button"
+                            class="member-alert-close"
+                            aria-label="Close delete confirmation"
+                            @click="closeKtpDialog"
+                        >
+                            <ion-icon :icon="closeOutline" />
+                        </button>
+
+                        <div class="ktp-delete-icon"><ion-icon :icon="trashOutline" /></div>
+                        <span class="member-alert-eyebrow ktp-delete-eyebrow">PROFILE DOCUMENT</span>
+                        <h3 id="ktp-delete-title">Delete this KTP?</h3>
+                        <p id="ktp-delete-description" class="ktp-delete-message">
+                            Hapus file <strong>{{ profile.ktpFileName }}</strong> dari pilihan profil ini? Nama file akan dihapus dari data profil di browser. Age dan Address tidak ikut dihapus.
+                        </p>
+                        <div class="ktp-dialog-actions">
+                            <button type="button" class="ktp-dialog-secondary" @click="closeKtpDialog">
+                                Cancel
+                            </button>
+                            <button type="button" class="ktp-dialog-danger" @click="deleteKtp">
+                                <ion-icon :icon="trashOutline" /> Yes, delete
+                            </button>
+                        </div>
+                    </section>
+                    </div>
+                </Transition>
+            </Teleport>
+
+            <!-- Custom membership-required alert (replaces browser localhost alert) -->
+            <Transition name="member-alert">
+                <div v-if="membershipAlertVisible" class="member-alert-backdrop" role="presentation" @click.self="dismissMembershipAlert">
+                    <section class="member-alert-dialog" role="alertdialog" aria-modal="true" aria-labelledby="member-alert-title" aria-describedby="member-alert-message">
+                        <button class="member-alert-close" type="button" aria-label="Close alert" @click="dismissMembershipAlert">
+                            <ion-icon :icon="closeOutline" />
+                        </button>
+                        <div class="member-alert-icon"><ion-icon :icon="warningIcon" /></div>
+                        <span class="member-alert-eyebrow">MEMBERSHIP REQUIRED</span>
+                        <h3 id="member-alert-title">Member feature locked</h3>
+                        <p id="member-alert-message">Buy membership first for access this feature.</p>
+                        <div class="member-alert-actions">
+                            <button type="button" class="member-alert-secondary" @click="dismissMembershipAlert">Not now</button>
+                            <button type="button" class="member-alert-primary" @click="goToMembershipPlans">View membership plans <ion-icon :icon="arrowForwardOutline" /></button>
+                        </div>
+                    </section>
+                </div>
+            </Transition>
+
+            <!-- Global in-app alert: replaces every native browser alert, including COD demo confirmation -->
+            <Transition name="member-alert">
+                <div v-if="appAlertVisible" class="member-alert-backdrop app-alert-backdrop" role="presentation" @click.self="dismissAppAlert">
+                    <section class="member-alert-dialog app-alert-dialog" role="alertdialog" aria-modal="true" aria-labelledby="app-alert-title" aria-describedby="app-alert-message">
+                        <button class="member-alert-close" type="button" aria-label="Close alert" @click="dismissAppAlert">
+                            <ion-icon :icon="closeOutline" />
+                        </button>
+                        <div class="member-alert-icon app-alert-icon" :class="{ 'app-alert-icon-success': appAlertIcon === ribbonOutline }"><ion-icon :icon="appAlertIcon" /></div>
+                        <span class="member-alert-eyebrow">FITLAB NOTIFICATION</span>
+                        <h3 id="app-alert-title">{{ appAlertTitle }}</h3>
+                        <p id="app-alert-message" class="app-alert-message">{{ appAlertMessage }}</p>
+                        <div class="member-alert-actions app-alert-actions">
+                            <button type="button" class="member-alert-primary" @click="dismissAppAlert">OK, got it</button>
+                        </div>
+                    </section>
+                </div>
+            </Transition>
+
+            <MemberAdPopup />
         </ion-content>
     </ion-page>
 </template>
@@ -626,8 +882,18 @@ import {
     peopleOutline,
     informationCircleOutline,
     refreshOutline,
+    warningOutline,
+    cloudUploadOutline,
+    checkmarkCircleOutline,
+    walletOutline,
+    cardOutline,
+    cashOutline,
+    eyeOutline,
+    trashOutline,
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
+import { createWorker } from 'tesseract.js';
+import MemberAdPopup from '../../components/MemberAdPopup.vue';
 
 type ModalName =
     | 'profile'
@@ -636,6 +902,8 @@ type ModalName =
     | 'diet'
     | 'trainer'
     | 'membership'
+    | 'membershipPlans'
+    | 'payment'
     | 'settings'
     | 'report'
     | 'qr'
@@ -647,6 +915,11 @@ interface MemberProfile {
     phone: string;
     goal: string;
     avatar: string;
+    age: number | null;
+    address: string;
+    height: number | null;
+    medicalNotes: string;
+    ktpFileName: string;
 }
 
 interface Workout {
@@ -671,6 +944,9 @@ interface Notice {
     message: string;
     date: string;
     read: boolean;
+    kind?: 'announcement' | 'system';
+    actionLabel?: string;
+    actionPath?: string;
 }
 
 const router = useRouter();
@@ -687,6 +963,11 @@ const defaultAvatar =
     'https://ui-avatars.com/api/?name=FitLab+Member&background=018181&color=ffffff&size=160';
 
 const activeModal = ref<ModalName>(null);
+const membershipAlertVisible = ref(false);
+const appAlertVisible = ref(false);
+const appAlertMessage = ref('');
+const appAlertTitle = ref('FitLab Notification');
+const appAlertIcon = ref(informationCircleOutline);
 const QR_TTL_SECONDS = 10 * 60;
 const qrToken = ref('');
 const qrTokenValue = ref('');
@@ -698,6 +979,12 @@ const qrCountdownSeconds = computed(() => Math.max(0, Math.ceil((qrExpiresAt.val
 const qrCountdownLabel = computed(() => `${Math.floor(qrCountdownSeconds.value / 60)}:${String(qrCountdownSeconds.value % 60).padStart(2, '0')}`);
 const qrImageUrl = computed(() => `https://api.qrserver.com/v1/create-qr-code/?size=640x640&margin=12&data=${encodeURIComponent(qrToken.value)}`);
 const profileSnapshot = ref<MemberProfile | null>(null);
+const ktpDialogMode = ref<'preview' | 'delete' | null>(null);
+const ktpPreviewUrl = ref('');
+const ktpPreviewUrlSnapshot = ref('');
+const ktpFileDraft = ref<File | null>(null);
+const ktpFileInput = ref<HTMLInputElement | null>(null);
+const ktpFeedback = ref('');
 const settingsSnapshot = ref<{ workoutReminders: boolean; membershipNotifications: boolean } | null>(null);
 const reportForm = reactive({ category: 'training', message: '' });
 const communityUrl = ref('');
@@ -709,18 +996,41 @@ const profile = reactive<MemberProfile>({
     phone: '',
     goal: 'Stay Fit',
     avatar: '',
+    age: null,
+    address: '',
+    height: null,
+    medicalNotes: '',
+    ktpFileName: '',
 });
 
 const membership = reactive({
-    plan: 'Monthly Membership',
-    description: 'Access to standard gym facilities and training areas.',
-    startDate: '01 Oct 2026',
-    endDate: '31 Oct 2026',
-    daysLeft: 19,
-    status: 'active',
-    statusLabel: 'Active',
-    paymentStatus: 'Paid',
+    plan: 'No Membership',
+    description: 'Choose a membership plan to access member features.',
+    startDate: '-',
+    endDate: '-',
+    daysLeft: 0,
+    status: 'inactive',
+    statusLabel: 'Inactive',
+    paymentStatus: 'Not paid',
 });
+const hasMembership = ref(false);
+const warningIcon = warningOutline;
+const membershipPlans = ref([
+    { id: 'basic', name: 'Basic Plan', price: 299000, period: 'month', description: 'A simple start for your fitness routine.', featured: false, durationDays: 30, features: ['Gym floor access', 'Standard equipment', 'Locker access', 'Basic progress tracking'] },
+    { id: 'platinum', name: 'Platinum Plan', price: 599000, period: 'month', description: 'More flexibility for your fitness journey.', featured: true, durationDays: 30, features: ['All Basic features', 'Group classes', 'Trainer consultation', 'Priority booking'] },
+    { id: 'gold', name: 'Gold Plan', price: 999000, period: '3 months', description: 'A longer plan to build consistency.', featured: false, durationDays: 90, features: ['All Platinum features', 'Quarterly fitness review', 'Guest pass', 'Priority support'] },
+]);
+const selectedPlan = ref(membershipPlans.value[1]);
+const ewallets = [
+    { id: 'shopeepay', name: 'ShopeePay', logo: '/assets/shp.webp' },
+    { id: 'qris', name: 'QRIS', logo: '/assets/qris.webp' },
+    { id: 'gopay', name: 'GoPay', logo: '/assets/gopay.webp' },
+    { id: 'dana', name: 'DANA', logo: '/assets/dana.webp' },
+    { id: 'ovo', name: 'OVO', logo: '/assets/ovo.webp' },
+];
+const payment = reactive({ method: 'ewallet', wallet: 'qris', walletAccount: '', cardNumber: '', cardholder: '', expiryMonth: '', expiryYear: '', cvc: '', cashPhone: '' });
+const paymentMessage = ref('');
+const expiryYears = Array.from({ length: 12 }, (_, index) => new Date().getFullYear() + index);
 
 const stats = reactive({
     sessions: 4,
@@ -792,11 +1102,26 @@ const hasAssignedTrainer = computed(() => Boolean(trainer.email && trainer.name)
 
 const notifications = ref<Notice[]>([
     {
+        id: 'NT-EVENT-MEGA-CHALLENGE',
+        title: 'Special event for members only!',
+        message: 'FitLab Mega Challenge — Special Workout. Join dan Daftar sekarang cuma Rp99.000 dan ikuti challenge workout spesial khusus member FitLab.',
+        date: new Date().toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        }),
+        read: false,
+        kind: 'announcement',
+        actionLabel: 'Klik di sini untuk join',
+        actionPath: '/member-event',
+    },
+    {
         id: 'NT-01',
         title: 'Welcome to FitLab',
         message: 'Keep your routine consistent and track your fitness progress.',
         date: '12 Oct 2026',
         read: false,
+        kind: 'system',
     },
     {
         id: 'NT-02',
@@ -804,6 +1129,7 @@ const notifications = ref<Notice[]>([
         message: 'Remember to review your assigned workout plan.',
         date: '12 Oct 2026',
         read: false,
+        kind: 'system',
     },
 ]);
 
@@ -828,6 +1154,8 @@ const modalTitle = computed(() => {
         diet: 'Diet Plans',
         trainer: 'My Trainer',
         membership: 'My Membership',
+        membershipPlans: 'Membership Plans',
+        payment: 'Payment',
         settings: 'Settings',
         report: 'Send a Report',
         qr: 'Gym Access QR',
@@ -838,6 +1166,10 @@ const modalTitle = computed(() => {
 
 
 function openQrModal() {
+    if (!hasMembership.value) {
+        showMembershipRequiredAlert();
+        return;
+    }
     // masih digunakan QR lama jika masih berlaku.
     if (!qrToken.value || Date.now() >= qrExpiresAt.value) {
         rotateQrToken();
@@ -916,7 +1248,7 @@ async function downloadQR() {
     } catch (error) {
         console.error('Download QR gagal:', error);
 
-        window.alert(
+        showAppAlert(
             'QR gagal diunduh. Periksa koneksi internet atau izin akses API QR.'
         );
     } finally {
@@ -931,7 +1263,16 @@ async function downloadQR() {
 }
 
 function openModal(modal: Exclude<ModalName, null>) {
-    if (modal === 'profile') profileSnapshot.value = { ...profile };
+    if ((modal === 'workout' || modal === 'diet' || modal === 'qr') && !hasMembership.value) {
+        showMembershipRequiredAlert();
+        return;
+    }
+    if (modal === 'membership' && !hasMembership.value) modal = 'membershipPlans';
+    if (modal === 'payment') paymentMessage.value = '';
+    if (modal === 'profile') {
+        profileSnapshot.value = { ...profile };
+        ktpPreviewUrlSnapshot.value = ktpPreviewUrl.value;
+    }
     if (modal === 'settings') settingsSnapshot.value = { ...settings };
     if (modal === 'report') { reportForm.category = 'training'; reportForm.message = ''; reportSavedMessage.value = ''; }
     activeModal.value = modal;
@@ -942,6 +1283,31 @@ function openModal(modal: Exclude<ModalName, null>) {
             read: true,
         }));
     }
+}
+
+function handleNoticeAction(notice: Notice) {
+    if (!notice.actionPath) return;
+
+    const from = router.currentRoute.value.fullPath || '/user/dashboard';
+    const destination = router.resolve(notice.actionPath);
+
+    if (!destination.matched.length) {
+        showAppAlert(
+            'Halaman event belum tersedia di router. Pastikan route /member-event sudah didaftarkan.',
+            'Page belum tersedia',
+        );
+        return;
+    }
+
+    // Tutup modal Notification lalu navigasi melalui Vue Router tanpa refresh manual.
+    activeModal.value = null;
+    void router.push({
+        path: notice.actionPath,
+        query: { from },
+    }).catch((error: unknown) => {
+        console.error('Gagal membuka halaman event:', error);
+        showAppAlert('Halaman event gagal dibuka. Periksa konfigurasi router.', 'Navigasi gagal');
+    });
 }
 
 function closeModal() {
@@ -958,6 +1324,15 @@ function accountStorageKey(base: string) {
 
 function cancelProfile() {
     if (profileSnapshot.value) Object.assign(profile, profileSnapshot.value);
+
+    // Restore the image preview that existed before opening the profile editor.
+    if (ktpPreviewUrl.value && ktpPreviewUrl.value !== ktpPreviewUrlSnapshot.value) {
+        URL.revokeObjectURL(ktpPreviewUrl.value);
+    }
+    ktpPreviewUrl.value = ktpPreviewUrlSnapshot.value;
+    ktpPreviewUrlSnapshot.value = '';
+    ktpFileDraft.value = null;
+    ktpFeedback.value = '';
     profileSnapshot.value = null;
 }
 
@@ -1002,7 +1377,7 @@ function contactTrainer() {
 function openCommunity() {
     if (!communityUrl.value) return;
     const url = communityUrl.value.trim();
-    if (!/^https:\/\//i.test(url)) { window.alert('Tautan komunitas harus menggunakan https://'); return; }
+    if (!/^https:\/\//i.test(url)) { showAppAlert('Tautan komunitas harus menggunakan https://'); return; }
     window.open(url, '_blank', 'noopener,noreferrer');
 }
 
@@ -1019,11 +1394,11 @@ function submitReport() {
         localStorage.setItem(REPORTS_KEY, JSON.stringify(existing));
         reportSavedMessage.value = 'Report tersimpan di perangkat ini. Setelah backend tersedia, report dapat dikirim ke Admin.';
         reportForm.message = '';
-        window.alert(reportSavedMessage.value);
+        showAppAlert(reportSavedMessage.value);
         closeModal();
     } catch (error) {
         console.error('Unable to save report:', error);
-        window.alert('Report gagal disimpan. Coba lagi.');
+        showAppAlert('Report gagal disimpan. Coba lagi.');
     }
 }
 
@@ -1047,6 +1422,10 @@ function getSession() {
         return session as {
             id?: string;
             name: string;
+            firstName?: string;
+            firstname?: string;
+            lastName?: string;
+            lastname?: string;
             email: string;
             role: string;
         };
@@ -1074,10 +1453,20 @@ function restoreData() {
         return;
     }
 
-    profile.name = session.name;
+    const sessionFirstName = String(session.firstName || session.firstname || '').trim();
+    const sessionLastName = String(session.lastName || session.lastname || '').trim();
+    const sessionFullName = [sessionFirstName, sessionLastName].filter(Boolean).join(' ')
+        || String(session.name || '').trim();
+    profile.name = sessionFullName || 'Member';
     profile.email = session.email;
 
     try {
+        const savedMembership = localStorage.getItem(accountStorageKey('fitlab-membership'));
+        if (savedMembership) {
+            const saved = JSON.parse(savedMembership) as { active?: boolean; plan?: string; description?: string; startDate?: string; endDate?: string; daysLeft?: number; paymentStatus?: string; status?: string; statusLabel?: string };
+            hasMembership.value = saved.active === true;
+            if (hasMembership.value) Object.assign(membership, saved, { status: 'active', statusLabel: 'Active' });
+        }
         const savedProfile = localStorage.getItem(accountStorageKey(PROFILE_KEY)) || localStorage.getItem(PROFILE_KEY);
 
         if (savedProfile) {
@@ -1085,11 +1474,16 @@ function restoreData() {
 
             // Apply saved profile only to the same account.
             if (parsed.email === session.email) {
-                profile.name = parsed.name || session.name;
+                profile.name = parsed.name || sessionFullName || 'Member';
                 profile.email = session.email;
                 profile.phone = parsed.phone || '';
                 profile.goal = parsed.goal || 'Stay Fit';
                 profile.avatar = parsed.avatar || '';
+                profile.age = parsed.age ?? null;
+                profile.address = parsed.address || '';
+                profile.height = parsed.height ?? null;
+                profile.medicalNotes = parsed.medicalNotes || '';
+                profile.ktpFileName = parsed.ktpFileName || '';
             }
         }
 
@@ -1117,7 +1511,402 @@ function restoreData() {
     restoreTrainerAssignment();
 }
 
-function saveProfile() {
+
+function showAppAlert(message: string, title = 'FitLab Notification') {
+    const normalizedMessage = String(message);
+    const looksLikeMembershipSuccess = /berhasil diaktifkan|membership (is )?active|membership aktif|pembayaran.*berhasil/i.test(normalizedMessage);
+    appAlertIcon.value = looksLikeMembershipSuccess ? ribbonOutline : informationCircleOutline;
+    appAlertTitle.value = title;
+    appAlertMessage.value = normalizedMessage;
+    appAlertVisible.value = true;
+}
+
+
+function dismissAppAlert() {
+    // Periksa apakah notifikasi yang ditutup adalah sukses pembayaran demo.
+    const isPaymentSuccess = appAlertMessage.value.includes(
+        'Pembayaran Cash on Delivery berhasil disimulasikan!'
+    );
+
+    // Tutup FitLab Notification seperti biasa.
+    appAlertVisible.value = false;
+
+    // Alert lain tidak memicu feedback.
+    if (!isPaymentSuccess) return;
+
+    // Pastikan sesi member masih aktif.
+    const paymentSession = getSession();
+
+    if (
+        !paymentSession ||
+        paymentSession.role !== 'member' ||
+        !paymentSession.email
+    ) {
+        return;
+    }
+
+    const paymentEmail = paymentSession.email.trim().toLowerCase();
+    const paymentSessionId = paymentSession.id || '';
+
+    // Tunggu 2,5 detik setelah member menekan OK, got it.
+    window.setTimeout(() => {
+        const currentSession = getSession();
+
+        // Batalkan jika member logout atau berganti akun.
+        if (
+            !currentSession ||
+            currentSession.role !== 'member' ||
+            currentSession.email.trim().toLowerCase() !== paymentEmail ||
+            (currentSession.id || '') !== paymentSessionId
+        ) {
+            return;
+        }
+
+        // Kirim event ke FeedbackPopup.vue.
+        window.dispatchEvent(
+            new CustomEvent('fitlab:payment-success')
+        );
+    }, 2500);
+}
+
+function showMembershipRequiredAlert() {
+    membershipAlertVisible.value = true;
+}
+
+function dismissMembershipAlert() {
+    membershipAlertVisible.value = false;
+}
+
+function goToMembershipPlans() {
+    membershipAlertVisible.value = false;
+    activeModal.value = 'membershipPlans';
+}
+
+function handleMembershipDetails() {
+    if (!hasMembership.value) {
+        showMembershipRequiredAlert();
+        return;
+    }
+    openModal('membership');
+}
+
+function choosePlan(plan: (typeof membershipPlans.value)[number]) {
+    selectedPlan.value = plan;
+    paymentMessage.value = '';
+    payment.method = 'ewallet';
+    activeModal.value = 'payment';
+}
+
+function activateMembership(plan: (typeof membershipPlans.value)[number], paymentLabel: string) {
+    const now = new Date();
+    const end = new Date(now);
+    end.setDate(end.getDate() + plan.durationDays);
+    const dateOptions: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+    const startDate = now.toLocaleDateString('en-GB', dateOptions);
+    const endDate = end.toLocaleDateString('en-GB', dateOptions);
+    const activeRecord = {
+        active: true,
+        plan: plan.name,
+        description: plan.description,
+        startDate,
+        endDate,
+        daysLeft: plan.durationDays,
+        status: 'active',
+        statusLabel: 'Active',
+        paymentStatus: paymentLabel,
+        paymentMethod: payment.method,
+        planId: plan.id,
+        activatedAt: now.toISOString(),
+        expiresAt: end.toISOString(),
+        demoActivation: true,
+    };
+    Object.assign(membership, activeRecord);
+    hasMembership.value = true;
+    try {
+        localStorage.setItem(accountStorageKey('fitlab-membership'), JSON.stringify(activeRecord));
+        localStorage.removeItem(accountStorageKey('fitlab-pending-payment'));
+    } catch (error) {
+        console.error('Unable to persist demo membership:', error);
+        showAppAlert('Membership aktif pada tampilan ini, tetapi browser gagal menyimpan status. Coba periksa pengaturan penyimpanan browser.');
+    }
+    paymentMessage.value = `${plan.name} berhasil diaktifkan untuk demo. QR Access dan View Details sekarang dapat digunakan.`;
+}
+
+function confirmPayment() {
+    if (payment.method === 'cash') {
+        if (!payment.cashPhone.trim()) {
+            showAppAlert('Masukkan nomor telepon untuk melanjutkan.');
+            return;
+        }
+        // Demo-only flow: the phone is a contact number, not an OTP.
+        // Generate a visible local reference code; no SMS or real payment is sent.
+        const confirmationCode = `FL-DEMO-${Math.floor(100000 + Math.random() * 900000)}`;
+        activateMembership(selectedPlan.value, 'Cash payment confirmed (DEMO)');
+        try {
+            localStorage.setItem(accountStorageKey('fitlab-last-payment-demo'), JSON.stringify({
+                confirmationCode,
+                planId: selectedPlan.value.id,
+                planName: selectedPlan.value.name,
+                method: 'cash-on-delivery-demo',
+                phone: payment.cashPhone.trim(),
+                amount: selectedPlan.value.price,
+                status: 'demo-confirmed',
+                createdAt: new Date().toISOString(),
+            }));
+        } catch (error) { console.error('Unable to save demo payment record:', error); }
+        showAppAlert(`Pembayaran Cash on Delivery berhasil disimulasikan!\n\nKode konfirmasi demo: ${confirmationCode}\nNomor kontak: ${payment.cashPhone.trim()}\n\nMembership sekarang ACTIVE. QR Access dan View Details sudah terbuka.\n\nCatatan: kode ini hanya referensi demo lokal, bukan OTP/SMS dan bukan bukti pembayaran nyata.`);
+        activeModal.value = null;
+        return;
+    }
+    // E-wallet/card are intentionally not activated until a real payment provider verifies the transaction.
+    paymentMessage.value = 'Metode ini masih mode demo. Hubungkan payment gateway (mis. Midtrans/Xendit) agar status pembayaran terverifikasi sebelum membership diaktifkan.';
+    showAppAlert('Payment gateway belum terhubung. Untuk menguji alur aktivasi demo, pilih Cash / Cash on Delivery (Demo).');
+}
+
+const KTP_DB_NAME = 'fitlab-member-private-documents';
+const KTP_DB_VERSION = 1;
+const KTP_STORE_NAME = 'member-ktp';
+
+interface StoredKtpRecord {
+    key: string;
+    name: string;
+    type: string;
+    blob: Blob;
+    savedAt: string;
+}
+
+function getKtpStorageKey(): string {
+    return accountStorageKey('fitlab-ktp-image');
+}
+
+function openKtpDatabase(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        if (typeof window === 'undefined' || !('indexedDB' in window)) {
+            reject(new Error('IndexedDB is not available in this browser.'));
+            return;
+        }
+
+        const request = window.indexedDB.open(KTP_DB_NAME, KTP_DB_VERSION);
+
+        request.onupgradeneeded = () => {
+            const database = request.result;
+            if (!database.objectStoreNames.contains(KTP_STORE_NAME)) {
+                database.createObjectStore(KTP_STORE_NAME, { keyPath: 'key' });
+            }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Could not open KTP storage.'));
+        request.onblocked = () => reject(new Error('KTP storage upgrade is blocked by another tab.'));
+    });
+}
+
+async function saveKtpImageToBrowser(file: File): Promise<void> {
+    const database = await openKtpDatabase();
+
+    try {
+        await new Promise<void>((resolve, reject) => {
+            const transaction = database.transaction(KTP_STORE_NAME, 'readwrite');
+            transaction.objectStore(KTP_STORE_NAME).put({
+                key: getKtpStorageKey(),
+                name: file.name,
+                type: file.type,
+                blob: file,
+                savedAt: new Date().toISOString(),
+            } satisfies StoredKtpRecord);
+
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error || new Error('Could not save KTP image.'));
+            transaction.onabort = () => reject(transaction.error || new Error('Saving KTP image was cancelled.'));
+        });
+    } finally {
+        database.close();
+    }
+}
+
+async function loadKtpImageFromBrowser(): Promise<boolean> {
+    if (!profile.ktpFileName) return false;
+
+    // A selected file's in-memory URL is already available; no need to load it again.
+    if (ktpPreviewUrl.value) return true;
+
+    let database: IDBDatabase | null = null;
+    try {
+        database = await openKtpDatabase();
+        const record = await new Promise<StoredKtpRecord | undefined>((resolve, reject) => {
+            const transaction = database!.transaction(KTP_STORE_NAME, 'readonly');
+            const request = transaction.objectStore(KTP_STORE_NAME).get(getKtpStorageKey());
+            request.onsuccess = () => resolve(request.result as StoredKtpRecord | undefined);
+            request.onerror = () => reject(request.error || new Error('Could not read KTP image.'));
+        });
+
+        if (!record || record.name !== profile.ktpFileName || !(record.blob instanceof Blob)) {
+            return false;
+        }
+
+        ktpPreviewUrl.value = URL.createObjectURL(record.blob);
+        return true;
+    } catch (error) {
+        console.warn('Unable to restore KTP image from browser storage:', error);
+        return false;
+    } finally {
+        database?.close();
+    }
+}
+
+async function removeKtpImageFromBrowser(): Promise<void> {
+    let database: IDBDatabase | null = null;
+    try {
+        database = await openKtpDatabase();
+        await new Promise<void>((resolve, reject) => {
+            const transaction = database!.transaction(KTP_STORE_NAME, 'readwrite');
+            transaction.objectStore(KTP_STORE_NAME).delete(getKtpStorageKey());
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error || new Error('Could not delete KTP image.'));
+            transaction.onabort = () => reject(transaction.error || new Error('Deleting KTP image was cancelled.'));
+        });
+    } finally {
+        database?.close();
+    }
+}
+
+async function openKtpDialog(mode: 'preview' | 'delete') {
+    if (!profile.ktpFileName) {
+        ktpFeedback.value = 'Belum ada file KTP yang dipilih.';
+        return;
+    }
+
+    ktpFeedback.value = '';
+
+    if (mode === 'preview' && !ktpPreviewUrl.value) {
+        // Load the actual image blob from local IndexedDB. A filename alone is not enough to render an image.
+        await loadKtpImageFromBrowser();
+    }
+
+    ktpDialogMode.value = mode;
+}
+
+function closeKtpDialog() {
+    ktpDialogMode.value = null;
+}
+
+function clearStoredKtpFilename() {
+    // Clear the KTP filename from this member's profile record and legacy profile entry.
+    const keys = new Set([accountStorageKey(PROFILE_KEY), PROFILE_KEY]);
+    for (const key of keys) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+
+            const saved = JSON.parse(raw) as Partial<MemberProfile>;
+            const savedEmail = String(saved.email || '').trim().toLowerCase();
+            const currentEmail = String(profile.email || '').trim().toLowerCase();
+            if (savedEmail && currentEmail && savedEmail === currentEmail) {
+                saved.ktpFileName = '';
+                localStorage.setItem(key, JSON.stringify(saved));
+            }
+        } catch (error) {
+            console.warn('Unable to clear saved KTP filename:', error);
+        }
+    }
+}
+
+async function deleteKtp() {
+    let storedImageRemoved = true;
+    try {
+        await removeKtpImageFromBrowser();
+    } catch (error) {
+        storedImageRemoved = false;
+        // Continue deleting the profile selection, but report the browser-storage issue.
+        console.warn('Unable to remove KTP image from browser storage:', error);
+    }
+
+    const urlsToRevoke = new Set(
+        [ktpPreviewUrl.value, ktpPreviewUrlSnapshot.value].filter(Boolean),
+    );
+    for (const url of urlsToRevoke) {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    }
+
+    ktpPreviewUrl.value = '';
+    ktpPreviewUrlSnapshot.value = '';
+    ktpFileDraft.value = null;
+    profile.ktpFileName = '';
+    if (ktpFileInput.value) ktpFileInput.value.value = '';
+
+    // Prevent Cancel from restoring the deleted filename.
+    if (profileSnapshot.value) {
+        profileSnapshot.value = { ...profileSnapshot.value, ktpFileName: '' };
+    }
+
+    clearStoredKtpFilename();
+    closeKtpDialog();
+    ktpFeedback.value = storedImageRemoved
+        ? 'KTP berhasil dihapus dari pilihan profil. Age dan Address tetap tersimpan.'
+        : 'Nama KTP dihapus dari profil, tetapi browser gagal membersihkan file lokal. Coba lagi sebelum memakai perangkat bersama.';
+}
+
+async function uploadKtp(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        showAppAlert('Pilih foto atau gambar KTP (JPG, PNG, WEBP). File PDF belum didukung untuk preview dan OCR di versi ini.');
+        input.value = '';
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        showAppAlert('Ukuran file KTP maksimal 5 MB.'); input.value = ''; return;
+    }
+
+    // Create an immediate in-memory preview; browser storage is written only when Save Profile is pressed.
+    if (ktpPreviewUrl.value && ktpPreviewUrl.value !== ktpPreviewUrlSnapshot.value) {
+        URL.revokeObjectURL(ktpPreviewUrl.value);
+    }
+    ktpPreviewUrl.value = URL.createObjectURL(file);
+    ktpFileDraft.value = file;
+    profile.ktpFileName = file.name;
+    ktpFeedback.value = '';
+
+    let worker: Awaited<ReturnType<typeof createWorker>> | null = null;
+    try {
+        paymentMessage.value = '';
+        showAppAlert('Memproses gambar KTP dengan Tesseract.js. Proses pertama bisa memerlukan waktu karena model bahasa perlu dimuat.');
+        worker = await createWorker('ind+eng');
+        const result = await worker.recognize(file);
+        const text = result.data.text.replace(/\r/g, '');
+        const ageMatch = text.match(/(?:umur|usia)\s*[:：]?\s*(\d{1,3})/i);
+        const birthDateMatch = text.match(/(?:tgl\.?\s*lahir|tanggal\s*lahir|lahir)[^\n]*?(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/i)
+            || text.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](19\d{2}|20\d{2})\b/);
+        if (ageMatch) {
+            const age = Number(ageMatch[1]);
+            if (age > 0 && age <= 120) profile.age = age;
+        } else if (birthDateMatch) {
+            const birthDate = new Date(Number(birthDateMatch[3]), Number(birthDateMatch[2]) - 1, Number(birthDateMatch[1]));
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            if (today.getMonth() < birthDate.getMonth() || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())) age--;
+            if (age > 0 && age <= 120) profile.age = age;
+        }
+        const addressMatch = text.match(/(?:alamat)\s*[:：]?\s*([^\n]+)/i);
+        if (addressMatch) {
+            profile.address = addressMatch[1].trim().replace(/\s{2,}/g, ' ');
+        }
+        if (ageMatch || birthDateMatch || addressMatch) {
+            showAppAlert('OCR selesai. Data yang terdeteksi sudah dimasukkan sebisa mungkin. Periksa Age dan Address secara manual sebelum menyimpan karena OCR bisa salah membaca KTP.');
+        } else {
+            showAppAlert('OCR selesai, tetapi Age/Address tidak terdeteksi dengan yakin. Isi kedua kolom secara manual.');
+        }
+    } catch (error) {
+        console.error('Tesseract.js OCR failed:', error);
+        showAppAlert('OCR gagal dijalankan. Pastikan npm install tesseract.js sudah dilakukan di folder project, lalu jalankan ulang dev server. Kamu tetap bisa mengisi Age dan Address manual.');
+    } finally {
+        if (worker) await worker.terminate().catch((error) => console.warn('Tesseract worker cleanup failed:', error));
+        input.value = '';
+    }
+}
+
+async function saveProfile() {
     const session = getSession();
 
     if (!session || session.role !== 'member') {
@@ -1128,6 +1917,16 @@ function saveProfile() {
     profile.name = profile.name.trim();
 
     try {
+        if (ktpFileDraft.value && profile.ktpFileName === ktpFileDraft.value.name) {
+            try {
+                await saveKtpImageToBrowser(ktpFileDraft.value);
+            } catch (storageError) {
+                console.error('Unable to store KTP image in IndexedDB:', storageError);
+                ktpFeedback.value = 'Gambar KTP belum dapat disimpan di browser. Coba browser lain atau pilih file lagi; profil belum disimpan.';
+                return;
+            }
+        }
+
         localStorage.setItem(
             accountStorageKey(PROFILE_KEY),
             JSON.stringify({
@@ -1146,11 +1945,22 @@ function saveProfile() {
             }),
         );
 
+        // Saving the profile commits the current KTP preview selection.
+        if (ktpPreviewUrlSnapshot.value && ktpPreviewUrlSnapshot.value !== ktpPreviewUrl.value) {
+            URL.revokeObjectURL(ktpPreviewUrlSnapshot.value);
+        }
+        ktpPreviewUrlSnapshot.value = ktpPreviewUrl.value;
+        if (ktpPreviewUrlSnapshot.value && ktpPreviewUrlSnapshot.value !== ktpPreviewUrl.value) {
+            URL.revokeObjectURL(ktpPreviewUrlSnapshot.value);
+        }
+        ktpPreviewUrlSnapshot.value = ktpPreviewUrl.value;
         profileSnapshot.value = { ...profile };
+        ktpFileDraft.value = null;
+        ktpFeedback.value = '';
         closeModal();
     } catch (error) {
         console.error('Unable to save member profile:', error);
-        window.alert('Profil gagal disimpan. Coba gunakan foto yang lebih kecil.');
+        showAppAlert('Profil gagal disimpan. Coba gunakan foto yang lebih kecil.');
     }
 }
 
@@ -1161,13 +1971,13 @@ function uploadAvatar(event: Event) {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-        window.alert('Pilih file gambar yang valid.');
+        showAppAlert('Pilih file gambar yang valid.');
         input.value = '';
         return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-        window.alert('Ukuran foto maksimal 2 MB.');
+        showAppAlert('Ukuran foto maksimal 2 MB.');
         input.value = '';
         return;
     }
@@ -1181,7 +1991,7 @@ function uploadAvatar(event: Event) {
     };
 
     reader.onerror = () => {
-        window.alert('Foto gagal dibaca. Silakan coba lagi.');
+        showAppAlert('Foto gagal dibaca. Silakan coba lagi.');
     };
 
     reader.readAsDataURL(file);
@@ -1208,7 +2018,7 @@ function saveSettings() {
         closeModal();
     } catch (error) {
         console.error('Unable to save settings:', error);
-        window.alert('Pengaturan gagal disimpan.');
+        showAppAlert('Pengaturan gagal disimpan.');
     }
 }
 
@@ -1235,6 +2045,10 @@ onMounted(() => {
 
 onUnmounted(() => {
     if (qrTicker) clearInterval(qrTicker);
+    const urlsToRevoke = new Set([ktpPreviewUrl.value, ktpPreviewUrlSnapshot.value].filter(Boolean));
+    for (const url of urlsToRevoke) {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    }
 });
 </script>
 
@@ -2143,11 +2957,19 @@ onUnmounted(() => {
     padding: 15px;
     border: 1px solid #edf0f3;
     border-radius: 12px;
+    min-width: 0;
+    background: #ffffff;
+    transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .notice-item.unread {
     border-color: #c9e9e5;
     background: #f5fbfa;
+}
+
+.notice-item.notice-announcement {
+    border-color: #d5ebe7;
+    background: linear-gradient(135deg, #f3fbf9 0%, #ffffff 78%);
 }
 
 .notice-icon {
@@ -2163,20 +2985,81 @@ onUnmounted(() => {
     font-size: 18px;
 }
 
-.notice-item strong {
-    font-size: 12px;
+.notice-icon-announcement {
+    color: #018181;
+    background: #dff3ee;
 }
 
-.notice-item p {
-    margin: 5px 0;
-    color: #667486;
-    font-size: 11px;
+.notice-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notice-category {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 0 7px;
+    padding: 4px 7px;
+    border-radius: 5px;
+    color: #018181;
+    background: #e2f4ef;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+}
+
+.notice-item strong {
+    display: block;
+    color: #243344;
+    font-size: 12px;
     line-height: 1.6;
 }
 
+.notice-item p {
+    margin: 5px 0 7px;
+    color: #667486;
+    font-size: 11px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
 .notice-item small {
+    display: block;
     color: #99a3b0;
     font-size: 10px;
+}
+
+.notice-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 34px;
+    margin-top: 11px;
+    padding: 7px 11px;
+    border: 1px solid #018181;
+    border-radius: 8px;
+    color: #ffffff;
+    background: #018181;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.notice-action ion-icon {
+    font-size: 14px;
+}
+
+.notice-action:hover {
+    border-color: #05685f;
+    background: #05685f;
+}
+
+.notice-action:focus-visible {
+    outline: 3px solid rgb(1 129 129 / 24%);
+    outline-offset: 2px;
 }
 
 .modal-description {
@@ -3761,6 +4644,1123 @@ ion-modal.fitlab-modal .modal-shell {
     .qr-live-dot,
     .qr-refresh-icon {
         animation: none !important;
+    }
+}
+/* Membership onboarding, KTP fields, payment checkout and responsive polish */
+.primary-btn:hover,
+.plan-select-btn:hover {
+    background: #0a9b86;
+    border-color: #0a9b86;
+    color: #fff;
+}
+
+.welcome-banner .primary-btn:hover {
+    background: #e2f7f1;
+    color: #006b60;
+}
+
+.membership-strip .text-btn {
+    padding: 10px 13px;
+    border: 1px solid #d7eee8;
+    border-radius: 10px;
+    background: #f2fbf8;
+    color: #087e70;
+    transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.membership-strip .text-btn:hover {
+    background: #087e70;
+    border-color: #087e70;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.membership-strip .text-btn:focus-visible {
+    outline: 3px solid #087e7040;
+    outline-offset: 2px;
+}
+
+.membership-status.inactive {
+    background: #fff0d8;
+    color: #b96b00;
+}
+
+.membership-inactive-icon {
+    background: #fff0d8;
+    color: #c77800;
+}
+
+.qr-launch-btn.access-blocked {
+    opacity: .55;
+    filter: grayscale(.7);
+}
+
+.ktp-upload-block {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 15px;
+    border: 1px dashed #cbd8df;
+    border-radius: 12px;
+    background: #f8fbfb;
+}
+
+.ktp-upload-block strong {
+    display: block;
+    color: #263445;
+    font-size: 12px;
+}
+
+.ktp-upload-block p {
+    margin: 5px 0;
+    color: #718096;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.ktp-upload-block small {
+    color: #078575;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+}
+
+.ktp-upload-btn {
+    flex-shrink: 0;
+}
+
+.form-grid>.full-width {
+    grid-column: 1 / -1;
+}
+
+
+.form-grid textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 82px;
+    padding: 10px 12px;
+    border: 1px solid #dfe5eb;
+    border-radius: 9px;
+    resize: vertical;
+    font: inherit;
+    font-size: 12px;
+    color: #263445;
+    background: #fff;
+    opacity: 1;
+}
+
+.form-grid textarea:focus {
+    background: #fff;
+    border-color: #078575;
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(7 133 117 / 10%);
+}
+
+.plan-picker-heading,
+.payment-intro {
+    text-align: center;
+    margin: 0 auto 22px;
+    max-width: 560px;
+}
+
+.plan-picker-heading h3,
+.payment-intro h3 {
+    margin: 7px 0;
+    font-size: 24px;
+    color: #152333;
+}
+
+.plan-picker-heading p,
+.payment-intro p {
+    color: #718096;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.membership-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 15px;
+    align-items: stretch;
+}
+
+.membership-plan-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 17px;
+    border: 1px solid #e0e8ec;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 5px 18px #163d4b0a;
+}
+
+.membership-plan-card.featured {
+    border: 2px solid #018181;
+    box-shadow: 0 12px 30px #01818118;
+}
+
+.plan-popular-label {
+    align-self: flex-start;
+    margin-bottom: 10px;
+    padding: 5px 9px;
+    border-radius: 20px;
+    background: #e3f7f1;
+    color: #087e70;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .5px;
+}
+
+.plan-card-name {
+    color: #6b7788;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.plan-price {
+    margin: 12px 0 8px;
+    color: #172333;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    overflow-wrap: anywhere;
+}
+
+.rupiah-mark {
+    margin-right: 4px;
+    color: #018181;
+    font-size: 15px;
+    letter-spacing: 0;
+}
+
+.plan-price small {
+    color: #8390a0;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.plan-card-description {
+    min-height: 42px;
+    margin: 0 0 14px;
+    color: #778394;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.plan-select-btn {
+    width: 100%;
+    min-height: 40px;
+    margin-bottom: 19px;
+}
+
+.plan-features-title {
+    margin-bottom: 11px;
+    color: #3d4b5b;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.plan-features {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.plan-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    color: #697789;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.plan-features ion-icon {
+    flex-shrink: 0;
+    color: #079783;
+    font-size: 15px;
+}
+
+.payment-method-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+    margin-bottom: 22px;
+}
+
+.payment-method-tabs button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 54px;
+    padding: 10px;
+    border: 1px solid #dfe7eb;
+    border-radius: 11px;
+    background: #fff;
+    color: #536273;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.payment-method-tabs button.selected {
+    border-color: #018181;
+    background: #eaf8f5;
+    color: #007c70;
+    box-shadow: 0 0 0 1px #018181 inset;
+}
+
+.payment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 17px;
+}
+
+.payment-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #475467;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.payment-form input,
+.payment-form select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 43px;
+    padding: 10px 12px;
+    border: 1px solid #dfe5eb;
+    border-radius: 9px;
+    outline: none;
+    background: #fff;
+    color: #263445;
+    font: inherit;
+    font-size: 12px;
+}
+
+.payment-form input:focus,
+.payment-form select:focus {
+    border-color: #018181;
+    box-shadow: 0 0 0 3px #01818118;
+}
+
+.ewallet-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.ewallet-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #dfe7eb;
+    border-radius: 10px;
+    background: #fff;
+    color: #39495b;
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ewallet-option.selected {
+    border-color: #018181;
+    background: #f0fbf8;
+}
+
+.wallet-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 64px;
+    width: 64px;
+    height: 38px;
+    padding: 4px 6px;
+    overflow: hidden;
+    border: 1px solid #edf0f3;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.wallet-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.wallet-name {
+    min-width: 0;
+    font-weight: 700;
+}
+
+.wallet-radio {
+    margin-left: auto;
+    color: #018181;
+    font-weight: 900;
+}
+
+.ewallet-option {
+    transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.ewallet-option:hover {
+    border-color: #9bd9ce;
+    background: #f7fcfa;
+}
+
+.ewallet-option.selected {
+    border-color: #018181;
+    background: #effaf7;
+    box-shadow: 0 0 0 1px #018181 inset;
+}
+
+.payment-inline-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+}
+
+.payment-hint {
+    margin: -5px 0 0;
+    color: #7b8796;
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.cash-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 15px;
+    border: 1px solid #f0d7a7;
+    border-radius: 12px;
+    background: #fff8e9;
+    color: #8b5b0b;
+}
+
+.cash-notice ion-icon {
+    flex-shrink: 0;
+    font-size: 23px;
+}
+
+.cash-notice strong {
+    font-size: 12px;
+}
+
+.cash-notice p {
+    margin: 6px 0 0;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.payment-summary {
+    padding: 15px;
+    border-radius: 11px;
+    background: #f6f8fa;
+    color: #596779;
+    font-size: 11px;
+}
+
+.payment-summary>div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.payment-summary strong {
+    color: #293849;
+}
+
+.payment-summary .payment-total {
+    margin-top: 9px;
+    padding-top: 13px;
+    border-top: 1px solid #dfe5eb;
+    color: #1e2c3b;
+    font-weight: 800;
+}
+
+.payment-total strong {
+    color: #018181;
+    font-size: 15px;
+}
+
+.payment-message {
+    margin: 0;
+    padding: 11px 13px;
+    border-radius: 9px;
+    background: #eaf8f5;
+    color: #087e70;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.payment-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.payment-actions button {
+    flex: 1;
+}
+
+@media (max-width:760px) {
+    .membership-plan-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .membership-plan-card {
+        padding: 18px;
+    }
+
+    .plan-card-description {
+        min-height: 0;
+    }
+
+    .payment-method-tabs button {
+        flex-direction: column;
+        gap: 5px;
+        font-size: 10px;
+    }
+
+    .payment-inline-fields {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .payment-inline-fields label:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .ktp-upload-block {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .ktp-upload-btn {
+        align-self: stretch;
+        justify-content: center;
+    }
+
+    .plan-picker-heading h3,
+    .payment-intro h3 {
+        font-size: 21px;
+    }
+}
+
+@media (max-width:420px) {
+    .payment-method-tabs {
+        gap: 5px;
+    }
+
+    .payment-method-tabs button {
+        padding: 7px 3px;
+    }
+
+    .ewallet-options {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-actions {
+        flex-direction: column-reverse;
+    }
+
+    .plan-price {
+        font-size: 25px;
+    }
+}
+
+
+
+/* KTP check/delete controls */
+.ktp-upload-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.ktp-selected-name,
+.ktp-empty-name {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.ktp-empty-name {
+    color: #8794a1;
+    font-size: 10px;
+}
+
+.ktp-feedback {
+    margin: 8px 0 0;
+    color: #087e70;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.ktp-file-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 11px;
+}
+
+.ktp-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 8px 11px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.ktp-action-btn ion-icon {
+    font-size: 14px;
+}
+
+.ktp-check-btn {
+    border-color: #cce9e3;
+    color: #087e70;
+    background: #eaf8f5;
+}
+
+.ktp-check-btn:hover {
+    border-color: #078575;
+    background: #dff3ee;
+}
+
+.ktp-delete-btn {
+    border-color: #f2d5d5;
+    color: #b63838;
+    background: #fff3f3;
+}
+
+.ktp-delete-btn:hover {
+    border-color: #d95757;
+    color: #982d2d;
+    background: #ffe8e8;
+}
+
+.ktp-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 18px;
+    overflow-y: auto;
+    background: rgba(14, 28, 39, .68);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.ktp-dialog {
+    position: relative;
+    width: min(100%, 560px);
+    max-height: min(90dvh, 780px);
+    box-sizing: border-box;
+    padding: 24px;
+    overflow: auto;
+    border: 1px solid rgba(226, 236, 239, .95);
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 24px 80px rgba(8, 28, 40, .28);
+}
+
+.ktp-dialog-heading {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding-right: 34px;
+    margin-bottom: 18px;
+}
+
+.ktp-dialog-icon,
+.ktp-delete-icon {
+    display: grid;
+    flex: 0 0 48px;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+    color: #078575;
+    background: #e9f7f3;
+    font-size: 23px;
+}
+
+.ktp-dialog-heading h3,
+.ktp-dialog h3 {
+    margin: 4px 0 3px;
+    color: #172b39;
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.ktp-dialog-filename {
+    margin: 0;
+    color: #788593;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.ktp-preview-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 150px;
+    max-height: 55dvh;
+    box-sizing: border-box;
+    padding: 10px;
+    overflow: hidden;
+    border: 1px solid #e5ecef;
+    border-radius: 12px;
+    background: #f5f8f9;
+}
+
+.ktp-preview-stage img {
+    display: block;
+    max-width: 100%;
+    max-height: 52dvh;
+    object-fit: contain;
+    border-radius: 5px;
+}
+
+.ktp-preview-unavailable {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    padding: 28px 20px;
+    border: 1px dashed #d9e4e8;
+    border-radius: 12px;
+    color: #788593;
+    background: #f7fafb;
+    text-align: center;
+}
+
+.ktp-preview-unavailable > ion-icon {
+    color: #078575;
+    font-size: 29px;
+}
+
+.ktp-preview-unavailable strong {
+    color: #243747;
+    font-size: 13px;
+}
+
+.ktp-preview-unavailable p {
+    max-width: 390px;
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.ktp-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 18px;
+}
+
+.ktp-dialog-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 10px 15px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.ktp-dialog-actions button ion-icon {
+    font-size: 14px;
+}
+
+.ktp-dialog-secondary {
+    border-color: #dbe4e8 !important;
+    color: #536170;
+    background: #fff;
+}
+
+.ktp-dialog-secondary:hover {
+    background: #f3f6f7;
+}
+
+.ktp-dialog-danger {
+    border-color: #bc3434 !important;
+    color: #fff;
+    background: #c43e3e;
+}
+
+.ktp-dialog-danger:hover {
+    background: #a92f2f;
+    transform: translateY(-1px);
+}
+
+.ktp-delete-dialog {
+    width: min(100%, 410px);
+    padding: 30px 26px 24px;
+    text-align: center;
+}
+
+.ktp-delete-icon {
+    margin: 0 auto 13px;
+    color: #c43e3e;
+    background: #fff0f0;
+}
+
+.ktp-delete-eyebrow {
+    color: #bb3b3b;
+}
+
+.ktp-delete-dialog h3 {
+    margin-top: 8px;
+}
+
+.ktp-delete-message {
+    margin: 10px auto 0;
+    color: #6f7d89;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.ktp-delete-message strong {
+    color: #293b4a;
+    overflow-wrap: anywhere;
+}
+
+.ktp-delete-dialog .ktp-dialog-actions {
+    justify-content: center;
+}
+
+.ktp-delete-dialog .ktp-dialog-actions button {
+    flex: 1;
+}
+
+@media (max-width: 600px) {
+    .ktp-upload-block {
+        gap: 12px;
+    }
+
+    .ktp-file-actions {
+        width: 100%;
+    }
+
+    .ktp-action-btn {
+        min-height: 36px;
+        padding: 8px 10px;
+    }
+
+    .ktp-dialog-backdrop {
+        align-items: center;
+        padding: 12px;
+    }
+
+    .ktp-dialog {
+        width: 100%;
+        max-height: 88dvh;
+        padding: 18px;
+        border-radius: 16px;
+    }
+
+    .ktp-preview-stage {
+        max-height: 48dvh;
+    }
+
+    .ktp-preview-stage img {
+        max-height: 45dvh;
+    }
+
+    .ktp-dialog-heading h3,
+    .ktp-dialog h3 {
+        font-size: 19px;
+    }
+
+    .ktp-dialog-actions button {
+        flex: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ktp-action-btn,
+    .ktp-dialog-actions button {
+        transition: none;
+    }
+}
+
+/* Global in-app alert: */
+.app-alert-backdrop {
+    z-index: 10010;
+}
+
+.app-alert-dialog {
+    text-align: center;
+}
+
+.app-alert-icon-success {
+    background: #e7f8ef !important;
+    color: #16834a !important;
+}
+
+.app-alert-icon {
+    background: #e8f7f3;
+    color: #078878;
+}
+
+.app-alert-message {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    max-width: 100% !important;
+}
+
+.app-alert-actions {
+    justify-content: center;
+}
+
+.app-alert-actions .member-alert-primary {
+    flex: 0 1 180px;
+}
+
+/* Fix ukuran tombol OCR dan global in-app alert pada mobile */
+@media (max-width: 480px) {
+    .app-alert-actions {
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .app-alert-actions .member-alert-primary {
+        flex: 0 1 180px;
+        width: 100%;
+        height: 44px;
+        min-height: 44px;
+        max-height: 44px;
+        padding: 10px 16px;
+        box-sizing: border-box;
+    }
+}
+
+/* In-app membership alert */
+.member-alert-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: rgba(14, 28, 39, .52);
+    backdrop-filter: blur(5px);
+}
+
+.member-alert-dialog {
+    position: relative;
+    width: min(100%, 410px);
+    padding: 30px 26px 24px;
+    border: 1px solid rgba(226, 236, 239, .95);
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 24px 80px rgba(8, 28, 40, .24);
+    text-align: center;
+}
+
+.member-alert-close {
+    position: absolute;
+    top: 13px;
+    right: 13px;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 10px;
+    background: #f3f6f7;
+    color: #647483;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.member-alert-close:hover {
+    background: #e8f6f2;
+    color: #087e70;
+    transform: rotate(90deg);
+}
+
+.member-alert-icon {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 15px;
+    border-radius: 18px;
+    background: #fff4e5;
+    color: #df8a16;
+    font-size: 29px;
+}
+
+.member-alert-eyebrow {
+    color: #0a9180;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+}
+
+.member-alert-dialog h3 {
+    margin: 8px 0 9px;
+    color: #172b39;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -.4px;
+}
+
+.member-alert-dialog p {
+    margin: 0 auto;
+    max-width: 300px;
+    color: #6f7d89;
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.member-alert-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.member-alert-actions button {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 43px;
+    padding: 10px 13px;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.member-alert-secondary {
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                color 0.2s ease;
+}
+
+.member-alert-secondary:hover {
+    background: #f58020;
+    border-color: #f58020;
+    color: #ffffff;
+}
+
+
+.member-alert-primary {
+    border: 1px solid #078878;
+    background: #078878;
+    color: #fff;
+    box-shadow: 0 5px 12px rgba(7, 136, 120, .18);
+}
+
+.member-alert-primary:hover {
+    background: #056e62;
+    box-shadow: 0 8px 18px rgba(7, 136, 120, .25);
+    transform: translateY(-1px);
+}
+
+.member-alert-primary ion-icon {
+    font-size: 15px;
+}
+
+.member-alert-enter-active,
+.member-alert-leave-active {
+    transition: opacity .18s ease;
+}
+
+.member-alert-enter-active .member-alert-dialog,
+.member-alert-leave-active .member-alert-dialog {
+    transition: transform .2s ease, opacity .2s ease;
+}
+
+.member-alert-enter-from,
+.member-alert-leave-to {
+    opacity: 0;
+}
+
+.member-alert-enter-from .member-alert-dialog,
+.member-alert-leave-to .member-alert-dialog {
+    opacity: 0;
+    transform: translateY(10px) scale(.97);
+}
+
+.membership-strip .text-btn .view-details-arrow {
+    transition: transform .22s ease;
+}
+
+.membership-strip .text-btn:hover .view-details-arrow {
+    animation: view-details-arrow-nudge .65s ease-in-out infinite;
+}
+
+@keyframes view-details-arrow-nudge {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+}
+
+@media (max-width: 480px) {
+    .member-alert-dialog {
+        padding: 28px 19px 20px;
+        border-radius: 19px;
+    }
+
+    .member-alert-dialog h3 {
+        font-size: 20px;
+    }
+
+    .member-alert-actions {
+        flex-direction: column-reverse;
     }
 }
 </style>

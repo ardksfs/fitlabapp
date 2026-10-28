@@ -109,7 +109,7 @@
                         <div class="avatar-container">
 
                             <img
-                                :src="form.avatar || '/assets/regi.jpg'"
+                                :src="form.avatar || '/assets/user.jpg'"
                                 class="avatar"
                                 alt="Profile"
                             />
@@ -218,7 +218,7 @@ const defaultProfile: AdminProfile = {
     timezone: 'GMT-7',
     workingHours: '10 AM - 6 PM',
     title: 'System Administrator',
-    avatar: '/assets/regi.jpg',
+    avatar: '/assets/user.jpg',
     lastUpdated: new Date().toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -356,7 +356,7 @@ const saveProfile = () => {
         timezone: form.timezone.trim(),
         workingHours: form.workingHours.trim(),
         title: form.title.trim(),
-        avatar: form.avatar || '/assets/regi.jpg',
+        avatar: form.avatar || '/assets/user.jpg',
 
         // This value changes only when Save changes is clicked.
         lastUpdated: new Date().toLocaleString('en-US', {

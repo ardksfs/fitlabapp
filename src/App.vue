@@ -9,6 +9,7 @@
 
         <ion-router-outlet />
 
+        <FeedbackPopup />
     </ion-app>
 </template>
 
@@ -19,7 +20,7 @@ import {
     IonRouterOutlet
 } from '@ionic/vue';
 import { useRouter } from 'vue-router';
-
+import FeedbackPopup from '@/components/FeedbackPopup.vue'
 const router = useRouter();
 
 const isLoading = ref(true);

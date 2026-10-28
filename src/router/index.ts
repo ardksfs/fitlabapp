@@ -1,6 +1,7 @@
 
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import type { RouteRecordRaw } from 'vue-router';
+import MemberEventPage from '../views/MemberEventPage.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -13,6 +14,12 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/auth/Auth.vue'),
   },
 
+  //ads path
+  {
+  path: '/member-event',
+  name: 'MemberEvent',
+  component: () => import('../views/MemberEventPage.vue'),
+},
   // USER
   {
     path: '/user',

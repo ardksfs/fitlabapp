@@ -39,7 +39,11 @@ FitLab also supports separate dashboard experiences for gym administrators, memb
 | 🖼️ **Profile Picture** | Change the profile picture and preview it before saving. |
 | 🕒 **Digital Clock** | Display a live digital clock in the profile preview. |
 | 📱 **Responsive Interface** | Mobile-friendly navigation and desktop-friendly layouts. |
-
+| 🪪 **ID Card OCR** | use OCR to automatically extract your date of birth and address. |
+| 📝 **Plan Card Membership** | Choose membership Gym plan. |
+| 💸 **Payment Method** |  Complete payment in your selected wallet in a live payment integration. |
+| 🔔 **Notify Ads** | Member notif announcement Ads. |
+| 🎭 **Feedback Popup & Utils** | Members can select a sentiment rating, write a comment, and then submit their feedback. | 
 
 > **Note:** The availability of each feature depends on the current implementation. A UI feature does not necessarily mean that backend services or database integration are already connected. There is an important limitation: `localStorage` can be used for integration only if both dashboards are opened in the same browser and share the same origin. If FitLab is accessed from a different device or account, a backend or database will be required to ensure the data is properly synchronized.
 
@@ -148,7 +152,13 @@ If it is missing from your local installation, install it with:
 ```bash
 npm install qrcode.vue
 ```
-### 6. Start the Development Server
+### 6. Install dependency OCR
+Upload your ID card (KTP) and use OCR to automatically extract your date of birth and address.
+
+```bash
+npm install tesseract.js
+```
+### 7. Start the Development Server
 
 For a standard Vite setup:
 

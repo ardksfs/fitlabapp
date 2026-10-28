@@ -681,8 +681,8 @@ const dietSearch = ref('');
 const selectedClient = ref<Client | null>(null);
 
 const profile = reactive<TrainerProfile>({
-    name: 'Owo',
-    email: 'owo@fitlab.com',
+    name: 'Private Trainer II',
+    email: 'pt2@fitlab.com',
     specialty: 'Personal Trainer',
     bio: 'Helping members improve their strength, fitness, and healthy habits.',
     avatar: '',

@@ -85,10 +85,10 @@
                                     <button
                                         type="button"
                                         class="member-social-button"
-                                        @click="showNotification('GitHub sign-up unavailable', 'GitHub sign-up is not configured yet. Please register with your email and password.')"
+                                        @click="showNotification('Meta sign-up unavailable', 'Meta sign-up is not configured yet. Please register with your email and password.')"
                                     >
-                                        <i class="fa-brands fa-github" aria-hidden="true"></i>
-                                        <span>GitHub</span>
+                                        <i class="fa-brands fa-meta meta-icon" aria-hidden="true"></i>
+                                        <span>Meta</span>
                                     </button>
                                 </div>
 
@@ -181,10 +181,10 @@
                                     <button
                                         type="button"
                                         class="member-social-button"
-                                        @click="showNotification('GitHub sign-in unavailable', 'GitHub sign-in is not configured yet. Please use your email and password.')"
+                                        @click="showNotification('Meta sign-in unavailable', 'Meta sign-in is not configured yet. Please use your email and password.')"
                                     >
-                                        <i class="fa-brands fa-github" aria-hidden="true"></i>
-                                        <span>GitHub</span>
+                                        <i class="fa-brands fa-meta meta-icon" aria-hidden="true"></i>
+                                        <span>Meta</span>
                                     </button>
                                 </div>
 
@@ -432,9 +432,9 @@ const defaultAdmin: AuthUser = {
 
 const defaultPT: AuthUser = {
     id: 'PT-1001',
-    name: 'Owo',
-    email: 'owo@fitlab.com',
-    password: 'owo00*',
+    name: 'Private Trainer II',
+    email: 'pt2@fitlab.com',
+    password: 'pt200*',
     role: 'pt'
 };
 
@@ -1014,6 +1014,9 @@ const handleAuth = async () => {
 }
 
 .member-social-button .google-icon {
+    color: #7d1204;
+}
+.member-social-button .meta-icon {
     color: #4285f4;
 }
 

@@ -423,8 +423,8 @@ interface Trainer {
 const trainers = ref<Trainer[]>([
     {
         id: 1,
-        name: 'Owy',
-        email: 'owy@example.com',
+        name: 'Private Trainer I',
+        email: 'pt1@fitlab.com',
         phone: '081234567890',
         spec: 'Strength',
         exp: '5 Years',
@@ -434,8 +434,8 @@ const trainers = ref<Trainer[]>([
     },
     {
         id: 2,
-        name: 'Owo',
-        email: 'owo@example.com',
+        name: 'Private Trainer II',
+        email: 'pt2@fitlab.com',
         phone: '081234567891',
         spec: 'Cardio',
         exp: '4 Years',

@@ -18,7 +18,7 @@
 
         <!-- Profil User -->
         <div class="sidebar-profile" @click="emit('openProfile')">
-            <img :src="profile.avatar || '/assets/regi.jpg'" class="avatar" alt="Profile" />
+            <img :src="profile.avatar || '/assets/user.jpg'" class="avatar" alt="Profile" />
 
             <div class="profile-info">
                 <span class="user-name">{{ profile.name }}</span>
