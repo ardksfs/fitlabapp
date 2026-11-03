@@ -38,8 +38,11 @@
                     <div class="banner-content">
                         <span class="eyebrow">YOUR FITNESS JOURNEY</span>
                         <h1>Hello, {{ firstName }}!</h1>
-                        <p>
+                        <p v-if="hasMembership">
                             Stay consistent, keep moving, and become the best version of yourself.
+                        </p>
+                        <p v-else>
+                            Choose a membership to unlock your workout plans, personal schedule, nutrition guidance, and gym access.
                         </p>
                         <div class="banner-actions">
                             <button class="primary-btn" @click="openModal(hasMembership ? 'workout' : 'membershipPlans')">
@@ -76,11 +79,13 @@
                         {{ hasMembership ? membership.statusLabel : 'Inactive' }}
                     </div>
 
-                    <button class="text-btn" @click="handleMembershipDetails">
-                        View Details <ion-icon class="view-details-arrow" :icon="arrowForwardOutline" />
+                    <button class="text-btn" @click="hasMembership ? handleMembershipDetails() : openModal('membershipPlans')">
+                        {{ hasMembership ? 'View Details' : 'Explore Plans' }} <ion-icon class="view-details-arrow" :icon="arrowForwardOutline" />
                     </button>
                 </section>
 
+                <!-- Member dashboard: available after membership activation -->
+                <template v-if="hasMembership">
                 <!-- Stats -->
                 <section class="section">
                     <div class="section-heading">
@@ -314,6 +319,120 @@
                             <ion-icon class="quick-arrow" :icon="arrowForwardOutline" />
                         </button>
                     </div>
+                </section>
+
+                </template>
+                <section v-else class="pre-membership-section">
+                    <div class="pre-member-intro">
+                        <div class="pre-member-intro-copy">
+                            <span class="pre-member-kicker">WELCOME TO FITLAB</span>
+                            <h2>Your fitness journey starts here.</h2>
+                            <p>
+                                Your account is ready. Choose a membership plan to unlock your personal workout dashboard,
+                                training schedule, diet guidance, progress tracking, and gym access.
+                            </p>
+                            <button type="button" class="pre-member-primary" @click="openModal('membershipPlans')">
+                                Explore Membership Plans <ion-icon :icon="arrowForwardOutline" />
+                            </button>
+                            <small class="pre-member-note">No membership is active on this account yet.</small>
+                        </div>
+                        <div class="pre-member-illustration" aria-hidden="true">
+                            <div class="pre-member-illustration-orbit orbit-one"></div>
+                            <div class="pre-member-illustration-orbit orbit-two"></div>
+                            <div class="pre-member-illustration-icon"><ion-icon :icon="fitnessOutline" /></div>
+                            <span class="pre-member-float float-top"><ion-icon :icon="barbellOutline" /></span>
+                            <span class="pre-member-float float-bottom"><ion-icon :icon="heartOutline" /></span>
+                        </div>
+                    </div>
+
+                    <div class="pre-member-section-heading">
+                        <span class="pre-member-kicker">UNLOCK YOUR MEMBER EXPERIENCE</span>
+                        <h2>Everything you need to stay on track</h2>
+                        <p>These features will appear on your dashboard after your membership is activated.</p>
+                    </div>
+
+                    <div class="pre-member-feature-grid">
+                        <article class="pre-member-feature-card">
+                            <div class="pre-member-feature-icon teal"><ion-icon :icon="barbellOutline" /></div>
+                            <div><h3>Personal Workout Plans</h3><p>View your assigned training programs, exercise levels, and session duration.</p></div>
+                            <span class="pre-member-lock"><ion-icon :icon="lockClosedOutline" /> Locked</span>
+                        </article>
+                        <article class="pre-member-feature-card">
+                            <div class="pre-member-feature-icon orange"><ion-icon :icon="calendarOutline" /></div>
+                            <div><h3>Training Schedule</h3><p>Keep track of upcoming sessions and coordinate your training with a trainer.</p></div>
+                            <span class="pre-member-lock"><ion-icon :icon="lockClosedOutline" /> Locked</span>
+                        </article>
+                        <article class="pre-member-feature-card">
+                            <div class="pre-member-feature-icon green"><ion-icon :icon="nutritionOutline" /></div>
+                            <div><h3>Diet & Nutrition Guide</h3><p>Get nutrition guidance and daily calorie targets to support your fitness goal.</p></div>
+                            <span class="pre-member-lock"><ion-icon :icon="lockClosedOutline" /> Locked</span>
+                        </article>
+                        <article class="pre-member-feature-card">
+                            <div class="pre-member-feature-icon purple"><ion-icon :icon="trendingUpOutline" /></div>
+                            <div><h3>Progress Tracking</h3><p>Monitor your workout activity, estimated calories, and daily water intake.</p></div>
+                            <span class="pre-member-lock"><ion-icon :icon="lockClosedOutline" /> Locked</span>
+                        </article>
+                        <article class="pre-member-feature-card">
+                            <div class="pre-member-feature-icon blue"><ion-icon :icon="qrCodeOutline" /></div>
+                            <div><h3>Gym Access QR</h3><p>Open your member QR access screen when your membership is active.</p></div>
+                            <span class="pre-member-lock"><ion-icon :icon="lockClosedOutline" /> Locked</span>
+                        </article>
+                        <article class="pre-member-feature-card">
+                            <div class="pre-member-feature-icon pink"><ion-icon :icon="peopleOutline" /></div>
+                            <div><h3>Trainer Support</h3><p>Access trainer information and get guidance for your workout routine.</p></div>
+                            <span class="pre-member-lock"><ion-icon :icon="lockClosedOutline" /> Member access</span>
+                        </article>
+                    </div>
+
+                    <div class="pre-member-section-heading pre-member-plans-heading">
+                        <span class="pre-member-kicker">PICK YOUR STARTING POINT</span>
+                        <h2>Choose the plan that fits your goal</h2>
+                        <p>Compare the available membership options, then continue to the payment screen.</p>
+                    </div>
+
+                    <div class="pre-member-plan-grid">
+                        <article v-for="plan in membershipPlans" :key="plan.id" class="pre-member-plan-card" :class="{ 'is-featured': plan.featured }">
+                            <span v-if="plan.featured" class="pre-member-popular">RECOMMENDED</span>
+                            <div class="pre-member-plan-top">
+                                <div class="pre-member-plan-icon"><ion-icon :icon="ribbonOutline" /></div>
+                                <span>
+                                    {{ plan.durationDays / 30 }}
+                                    {{ plan.durationDays / 30 === 1 ? 'MONTH' : 'MONTHS' }}
+                                </span>
+                            </div>
+                            <h3>{{ plan.name }}</h3>
+                            <p>{{ plan.description }}</p>
+                            <div class="pre-member-price">
+                                <strong>Rp{{ plan.price.toLocaleString('id-ID') }}</strong>
+                                <small>/ {{ plan.period }}</small>
+                            </div>
+                            <ul>
+                                <li v-for="feature in plan.features" :key="feature"><ion-icon :icon="checkmarkCircleOutline" /> {{ feature }}</li>
+                            </ul>
+                            <button type="button" class="pre-member-plan-button" :class="{ featured: plan.featured }" @click="choosePlan(plan)">
+                                Choose {{ plan.name }} <ion-icon :icon="arrowForwardOutline" />
+                            </button>
+                        </article>
+                    </div>
+
+                    <div class="pre-member-howto">
+                        <div class="pre-member-howto-heading">
+                            <span class="pre-member-kicker">GET STARTED IN 3 STEPS</span>
+                            <h2>From sign-up to your first workout</h2>
+                        </div>
+                        <div class="pre-member-steps">
+                            <article><span>01</span><div><strong>Choose a plan</strong><p>Select a membership that matches your training needs.</p></div></article>
+                            <article><span>02</span><div><strong>Complete the checkout</strong><p>Follow the payment instructions shown on the next screen.</p></div></article>
+                            <article><span>03</span><div><strong>Unlock your dashboard</strong><p>Once active, your workout, schedule, diet, and access features will appear.</p></div></article>
+                        </div>
+                    </div>
+
+                    <div class="pre-member-help">
+                        <div class="pre-member-help-icon"><ion-icon :icon="informationCircleOutline" /></div>
+                        <div><strong>Need help choosing a membership?</strong><p>Review each plan's features or contact FitLab staff before continuing.</p></div>
+                        <button type="button" @click="openModal('membershipPlans')">View plans <ion-icon :icon="arrowForwardOutline" /></button>
+                    </div>
+                    <p class="pre-member-demo-disclaimer">Demo notice: Cash on Delivery activation is simulated locally. E-wallet and card payments require a connected payment gateway before membership can be activated.</p>
                 </section>
 
                 <!-- Footer -->
@@ -818,8 +937,8 @@
                         </button>
                         <div class="member-alert-icon"><ion-icon :icon="warningIcon" /></div>
                         <span class="member-alert-eyebrow">MEMBERSHIP REQUIRED</span>
-                        <h3 id="member-alert-title">Member feature locked</h3>
-                        <p id="member-alert-message">Buy membership first for access this feature.</p>
+                        <h3 id="member-alert-title">Membership unlocks your dashboard</h3>
+                        <p id="member-alert-message">Choose a FitLab membership first to access workout plans, diet guidance, trainer support, and gym QR access.</p>
                         <div class="member-alert-actions">
                             <button type="button" class="member-alert-secondary" @click="dismissMembershipAlert">Not now</button>
                             <button type="button" class="member-alert-primary" @click="goToMembershipPlans">View membership plans <ion-icon :icon="arrowForwardOutline" /></button>
@@ -890,6 +1009,9 @@ import {
     cashOutline,
     eyeOutline,
     trashOutline,
+    lockClosedOutline,
+    qrCodeOutline,
+    heartOutline,
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { createWorker } from 'tesseract.js';
@@ -1015,11 +1137,57 @@ const membership = reactive({
 });
 const hasMembership = ref(false);
 const warningIcon = warningOutline;
+
 const membershipPlans = ref([
-    { id: 'basic', name: 'Basic Plan', price: 299000, period: 'month', description: 'A simple start for your fitness routine.', featured: false, durationDays: 30, features: ['Gym floor access', 'Standard equipment', 'Locker access', 'Basic progress tracking'] },
-    { id: 'platinum', name: 'Platinum Plan', price: 599000, period: 'month', description: 'More flexibility for your fitness journey.', featured: true, durationDays: 30, features: ['All Basic features', 'Group classes', 'Trainer consultation', 'Priority booking'] },
-    { id: 'gold', name: 'Gold Plan', price: 999000, period: '3 months', description: 'A longer plan to build consistency.', featured: false, durationDays: 90, features: ['All Platinum features', 'Quarterly fitness review', 'Guest pass', 'Priority support'] },
+    {
+        id: 'basic',
+        name: 'Basic Plan',
+        price: 250000,
+        period: '1 month',
+        description: 'A simple start for your fitness routine.',
+        featured: false,
+        durationDays: 30,
+        features: [
+            'Gym floor access',
+            'Standard equipment',
+            'Locker access',
+            'Basic progress tracking',
+        ],
+    },
+    {
+        id: 'platinum',
+        name: 'Platinum Plan',
+        price: 750000,
+        period: '3 months + 2 months FREE',
+        description: 'Get 5 months of fitness access at a better value.',
+        featured: true,
+        durationDays: 150, // 5 months total
+        features: [
+            'All Basic features',
+            'Group classes',
+            'Trainer consultation',
+            'Priority booking',
+            '2 FREE bonus months',
+        ],
+    },
+    {
+        id: 'gold',
+        name: 'Gold Plan',
+        price: 3000000,
+        period: '12 months + 6 months FREE',
+        description: 'Get 18 months of premium fitness access.',
+        featured: false,
+        durationDays: 540, // 18 months total
+        features: [
+            'All Platinum features',
+            'Quarterly fitness review',
+            'Guest pass',
+            'Priority support',
+            '6 FREE bonus months',
+        ],
+    },
 ]);
+
 const selectedPlan = ref(membershipPlans.value[1]);
 const ewallets = [
     { id: 'shopeepay', name: 'ShopeePay', logo: '/assets/shp.webp' },
@@ -1263,7 +1431,7 @@ async function downloadQR() {
 }
 
 function openModal(modal: Exclude<ModalName, null>) {
-    if ((modal === 'workout' || modal === 'diet' || modal === 'qr') && !hasMembership.value) {
+    if ((modal === 'workout' || modal === 'diet' || modal === 'qr' || modal === 'trainer') && !hasMembership.value) {
         showMembershipRequiredAlert();
         return;
     }
@@ -5761,6 +5929,601 @@ ion-modal.fitlab-modal .modal-shell {
 
     .member-alert-actions {
         flex-direction: column-reverse;
+    }
+}
+/* New member onboarding state (shown before membership activation) */
+.pre-membership-section {
+    margin-top: 28px;
+}
+
+.pre-member-intro {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    min-height: 260px;
+    padding: 38px 44px;
+    overflow: hidden;
+    border: 1px solid #dcefeb;
+    border-radius: 22px;
+    background: linear-gradient(115deg, #ffffff 0%, #f0faf8 58%, #e5f5f2 100%);
+}
+
+.pre-member-intro-copy {
+    position: relative;
+    z-index: 1;
+    max-width: 650px;
+}
+
+.pre-member-kicker {
+    color: #078878;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+}
+
+.pre-member-intro h2 {
+    margin: 10px 0 9px;
+    color: #172b39;
+    font-size: clamp(25px, 3vw, 34px);
+    font-weight: 850;
+    letter-spacing: -.8px;
+}
+
+.pre-member-intro p {
+    max-width: 590px;
+    margin: 0 0 19px;
+    color: #667887;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.pre-member-primary,
+.pre-member-plan-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 43px;
+    padding: 11px 17px;
+    border: 1px solid #078878;
+    border-radius: 10px;
+    background: #078878;
+    color: #fff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.pre-member-primary:hover,
+.pre-member-plan-button:hover {
+    background: #056e62;
+    border-color: #056e62;
+    transform: translateY(-1px);
+}
+
+.pre-member-note {
+    display: block;
+    margin-top: 11px;
+    color: #83919c;
+    font-size: 10px;
+}
+
+.pre-member-illustration {
+    position: relative;
+    display: grid;
+    flex: 0 0 230px;
+    place-items: center;
+    width: 230px;
+    height: 190px;
+}
+
+.pre-member-illustration-orbit {
+    position: absolute;
+    border: 1px solid rgba(7, 136, 120, .17);
+    border-radius: 50%;
+}
+
+.orbit-one {
+    width: 185px;
+    height: 185px;
+}
+
+.orbit-two {
+    width: 140px;
+    height: 140px;
+    border-style: dashed;
+}
+
+.pre-member-illustration-icon {
+    display: grid;
+    place-items: center;
+    width: 100px;
+    height: 100px;
+    border-radius: 30px;
+    background: #078878;
+    color: #fff;
+    font-size: 52px;
+    box-shadow: 0 18px 38px rgba(7, 136, 120, .2);
+}
+
+.pre-member-float {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid #e5efed;
+    border-radius: 14px;
+    background: #fff;
+    color: #078878;
+    font-size: 20px;
+    box-shadow: 0 8px 20px rgba(18, 54, 64, .08);
+}
+
+.float-top {
+    top: 12px;
+    right: 30px;
+}
+
+.float-bottom {
+    bottom: 12px;
+    left: 23px;
+    color: #e48b38;
+}
+
+.pre-member-section-heading {
+    margin: 32px 0 17px;
+    text-align: center;
+}
+
+.pre-member-section-heading h2,
+.pre-member-howto h2 {
+    margin: 7px 0 6px;
+    color: #1c303e;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.pre-member-section-heading p {
+    margin: 0;
+    color: #7c8995;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.pre-member-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 13px;
+}
+
+.pre-member-feature-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: 128px;
+    padding: 17px;
+    border: 1px solid #e8edf0;
+    border-radius: 15px;
+    background: #fff;
+}
+
+.pre-member-feature-icon {
+    display: grid;
+    flex: 0 0 42px;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    font-size: 21px;
+}
+
+.pre-member-feature-icon.teal {
+    color: #078878;
+    background: #e6f6f2;
+}
+
+.pre-member-feature-icon.orange {
+    color: #d8852a;
+    background: #fff3e5;
+}
+
+.pre-member-feature-icon.green {
+    color: #28965e;
+    background: #e8f7ee;
+}
+
+.pre-member-feature-icon.purple {
+    color: #8061c5;
+    background: #f1ebfc;
+}
+
+.pre-member-feature-icon.blue {
+    color: #347fbd;
+    background: #e9f3fc;
+}
+
+.pre-member-feature-icon.pink {
+    color: #c45d90;
+    background: #fcecf4;
+}
+
+.pre-member-feature-card h3 {
+    margin: 2px 0 5px;
+    color: #263947;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.pre-member-feature-card p {
+    margin: 0;
+    color: #778692;
+    font-size: 10px;
+    line-height: 1.65;
+}
+
+.pre-member-lock {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 5px 7px;
+    border-radius: 20px;
+    background: #f3f5f6;
+    color: #89949d;
+    font-size: 8px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.pre-member-plans-heading {
+    margin-top: 40px;
+}
+
+.pre-member-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 15px;
+}
+
+.pre-member-plan-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 23px;
+    border: 1px solid #e5ebee;
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 5px 18px rgba(27, 48, 61, .035);
+}
+
+.pre-member-plan-card.is-featured {
+    border: 1.5px solid #078878;
+    box-shadow: 0 12px 30px rgba(7, 136, 120, .1);
+}
+
+.pre-member-popular {
+    position: absolute;
+    top: -10px;
+    right: 17px;
+    padding: 5px 9px;
+    border-radius: 20px;
+    background: #078878;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .8px;
+}
+
+.pre-member-plan-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.pre-member-plan-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    background: #e7f6f2;
+    color: #078878;
+    font-size: 21px;
+}
+
+.pre-member-plan-top>span {
+    color: #89959f;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .7px;
+}
+
+.pre-member-plan-card h3 {
+    margin: 15px 0 5px;
+    color: #233744;
+    font-size: 16px;
+    font-weight: 850;
+}
+
+.pre-member-plan-card>p {
+    min-height: 36px;
+    margin: 0;
+    color: #7b8994;
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.pre-member-price {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin: 17px 0;
+}
+
+.pre-member-price strong {
+    color: #087d70;
+    font-size: 23px;
+    font-weight: 850;
+    letter-spacing: -.5px;
+}
+
+.pre-member-price small {
+    color: #84909b;
+    font-size: 10px;
+}
+
+.pre-member-plan-card ul {
+    display: grid;
+    gap: 10px;
+    flex: 1;
+    margin: 0 0 20px;
+    padding: 16px 0 0;
+    border-top: 1px solid #eef1f3;
+    list-style: none;
+}
+
+.pre-member-plan-card li {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    color: #62727e;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.pre-member-plan-card li ion-icon {
+    flex: 0 0 auto;
+    color: #15956e;
+    font-size: 14px;
+}
+
+.pre-member-plan-button {
+    width: 100%;
+    margin-top: auto;
+    background: #fff;
+    color: #078878;
+}
+
+.pre-member-plan-button:hover {
+    color: #fff;
+}
+
+.pre-member-plan-button.featured {
+    background: #078878;
+    color: #fff;
+}
+
+.pre-member-howto {
+    display: flex;
+    align-items: flex-start;
+    gap: 40px;
+    margin-top: 38px;
+    padding: 27px;
+    border: 1px solid #e8edf0;
+    border-radius: 17px;
+    background: #fff;
+}
+
+.pre-member-howto-heading {
+    flex: 0 0 29%;
+}
+
+.pre-member-howto h2 {
+    font-size: 19px;
+    line-height: 1.4;
+}
+
+.pre-member-steps {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 17px;
+}
+
+.pre-member-steps article {
+    display: flex;
+    gap: 10px;
+}
+
+.pre-member-steps article>span {
+    color: #078878;
+    font-size: 22px;
+    font-weight: 850;
+}
+
+.pre-member-steps strong {
+    display: block;
+    margin: 3px 0 5px;
+    color: #2a3c48;
+    font-size: 11px;
+}
+
+.pre-member-steps p {
+    margin: 0;
+    color: #7c8994;
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+.pre-member-help {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-top: 15px;
+    padding: 17px 20px;
+    border: 1px solid #e7efed;
+    border-radius: 14px;
+    background: #f8fcfb;
+}
+
+.pre-member-help-icon {
+    display: grid;
+    flex: 0 0 39px;
+    place-items: center;
+    width: 39px;
+    height: 39px;
+    border-radius: 12px;
+    background: #e5f5f1;
+    color: #078878;
+    font-size: 20px;
+}
+
+.pre-member-help>div:nth-child(2) {
+    flex: 1;
+}
+
+.pre-member-help strong {
+    color: #2b3e4b;
+    font-size: 11px;
+}
+
+.pre-member-help p {
+    margin: 4px 0 0;
+    color: #788793;
+    font-size: 9px;
+}
+
+.pre-member-help button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 0;
+    border: 0;
+    background: transparent;
+    color: #078878;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.pre-member-demo-disclaimer {
+    margin: 11px 2px 0;
+    color: #8a969f;
+    font-size: 9px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+@media (max-width: 1000px) {
+    .pre-member-feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pre-member-howto {
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .pre-member-howto-heading {
+        flex-basis: auto;
+    }
+}
+
+@media (max-width: 700px) {
+    .pre-member-intro {
+        min-height: 0;
+        padding: 27px 23px;
+    }
+
+    .pre-member-illustration {
+        flex-basis: 130px;
+        width: 130px;
+        height: 140px;
+    }
+
+    .orbit-one {
+        width: 130px;
+        height: 130px;
+    }
+
+    .orbit-two {
+        width: 96px;
+        height: 96px;
+    }
+
+    .pre-member-illustration-icon {
+        width: 68px;
+        height: 68px;
+        border-radius: 22px;
+        font-size: 36px;
+    }
+
+    .pre-member-feature-grid,
+    .pre-member-plan-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pre-member-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .pre-member-plan-card>p {
+        min-height: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .pre-member-intro {
+        padding: 24px 19px;
+    }
+
+    .pre-member-illustration {
+        display: none;
+    }
+
+    .pre-member-section-heading h2 {
+        font-size: 19px;
+    }
+
+    .pre-member-feature-card {
+        min-height: 0;
+        flex-wrap: wrap;
+    }
+
+    .pre-member-lock {
+        margin-left: 54px;
+    }
+
+    .pre-member-help {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .pre-member-help>div:nth-child(2) {
+        min-width: calc(100% - 60px);
+    }
+
+    .pre-member-help button {
+        margin-left: 52px;
     }
 }
 </style>

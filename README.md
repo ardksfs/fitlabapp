@@ -14,6 +14,15 @@ A modern, responsive gym management dashboard built with **Vue.js 3**, **Ionic F
 </div>
 
 ---
+## 📸 FitLab Web-App Mockup
+
+<p align="center">
+  <img
+    src="public/assets/Fitlab-Web-App-MockUp.png"
+    alt="FitLab Web-App Mockup"
+    width="100%"
+  />
+</p>
 
 ## 📌 About FitLab
 
@@ -84,6 +93,21 @@ different interface depending on the selected login route.
 | Member | `/login` | Sign In and Sign Up |
 | Admin | `/login?role=admin` | Sign In only |
 | Personal Trainer | `/login?role=pt` | Sign In only |
+
+### Login Links & Password
+Admin Login:
+https://fitlabapp.fregidikasetiawan.workers.dev/login?role=admin
+Email: admin@fitlab.com
+Password: admin00*
+
+Personal Trainer LoginL:
+https://fitlabapp.fregidikasetiawan.workers.dev/login?role=pt
+Email: pt2@fitlab.com
+Password: pt200*
+
+Member/User Login:    
+https://fitlabapp.fregidikasetiawan.workers.dev/login
+Use the ID card (KTP) in the assets folder for the user login demo.
 
 ### Role Validation
 
@@ -247,14 +271,6 @@ Potential enhancements for future versions:
 - 📷 QR-code attendance verification
 - 🧪 Automated testing and validation
 
-## 🤝 Contributing
-
-Suggestions and improvements are welcome.
-
-1. Fork the repository.
-2. Create a branch for your changes.
-3. Commit your changes with a descriptive message.
-4. Push your branch and open a Pull Request.
 
 ## 📄 License
 
