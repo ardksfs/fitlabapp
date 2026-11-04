@@ -1016,6 +1016,9 @@ import {
 import { useRouter } from 'vue-router';
 import { createWorker } from 'tesseract.js';
 import MemberAdPopup from '../../components/MemberAdPopup.vue';
+import { SESSION_KEY, clearSession, getDashboardPath, getSessionRole, readSession } from '@/utils/session';
+import { isValidEmail } from '@/utils/auth';
+import { createQrPngDataUrl } from '@/utils/qr';
 
 type ModalName =
     | 'profile'
@@ -1073,7 +1076,6 @@ interface Notice {
 
 const router = useRouter();
 
-const SESSION_KEY = 'fitlab_session';
 const PROFILE_KEY = 'fitlab-member-profile';
 const SETTINGS_KEY = 'fitlab-member-settings';
 const WATER_KEY = 'fitlab-member-water';
@@ -1099,7 +1101,8 @@ const qrNow = ref(Date.now());
 let qrTicker: ReturnType<typeof setInterval> | undefined;
 const qrCountdownSeconds = computed(() => Math.max(0, Math.ceil((qrExpiresAt.value - qrNow.value) / 1000)));
 const qrCountdownLabel = computed(() => `${Math.floor(qrCountdownSeconds.value / 60)}:${String(qrCountdownSeconds.value % 60).padStart(2, '0')}`);
-const qrImageUrl = computed(() => `https://api.qrserver.com/v1/create-qr-code/?size=640x640&margin=12&data=${encodeURIComponent(qrToken.value)}`);
+// The access token is rendered locally; it must never be sent to a third-party QR service.
+const qrImageUrl = computed(() => (qrToken.value ? createQrPngDataUrl(qrToken.value, 640) : ''));
 const profileSnapshot = ref<MemberProfile | null>(null);
 const ktpDialogMode = ref<'preview' | 'delete' | null>(null);
 const ktpPreviewUrl = ref('');
@@ -1373,59 +1376,30 @@ function rotateQrToken() {
 
 const isDownloadingQR = ref(false);
 
-async function downloadQR() {
+function downloadQR() {
     if (isDownloadingQR.value) return;
+
+    const dataUrl = qrImageUrl.value;
+    if (!dataUrl) {
+        showAppAlert('QR gagal diunduh. Browser tidak dapat membuat gambar QR.');
+        return;
+    }
 
     isDownloadingQR.value = true;
 
-    let blobUrl: string | undefined;
-
     try {
-        const response = await fetch(qrImageUrl.value, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-store',
-        });
-
-        if (!response.ok) {
-            throw new Error(`QR API returned HTTP ${response.status}`);
-        }
-
-        const blob = await response.blob();
-
-        if (!blob.size) {
-            throw new Error('QR image is empty');
-        }
-
-        // secure save only PNG.
-        const pngBlob = blob.type === 'image/png'
-            ? blob
-            : new Blob([blob], { type: 'image/png' });
-
-        blobUrl = URL.createObjectURL(pngBlob);
-
         const link = document.createElement('a');
-        link.href = blobUrl;
+        link.href = dataUrl;
         link.download = 'FitLab-Gym-Access-QR.png';
         link.style.display = 'none';
 
         document.body.appendChild(link);
         link.click();
         link.remove();
-
     } catch (error) {
         console.error('Download QR gagal:', error);
-
-        showAppAlert(
-            'QR gagal diunduh. Periksa koneksi internet atau izin akses API QR.'
-        );
+        showAppAlert('QR gagal diunduh. Coba lagi.');
     } finally {
-        if (blobUrl) {
-            window.setTimeout(() => {
-                URL.revokeObjectURL(blobUrl!);
-            }, 1500);
-        }
-
         isDownloadingQR.value = false;
     }
 }
@@ -1514,8 +1488,10 @@ function restoreTrainerAssignment() {
     if (!session?.email) return;
     try {
         const raw = localStorage.getItem(ASSIGNMENTS_KEY);
-        const assignments = raw ? JSON.parse(raw) as Array<Record<string, unknown>> : [];
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        const assignments = Array.isArray(parsed) ? parsed as Array<Record<string, unknown>> : [];
         const assignment = assignments.find((item) =>
+            item !== null && typeof item === 'object' &&
             String(item.memberEmail || '').toLowerCase() === session.email.toLowerCase() && item.status === 'assigned'
         );
         if (assignment && typeof assignment.trainerEmail === 'string' && typeof assignment.trainerName === 'string') {
@@ -1539,7 +1515,11 @@ function contactTrainer() {
         const number = trainer.whatsapp.replace(/[^0-9]/g, '');
         if (number) { window.open(`https://wa.me/${number}`, '_blank', 'noopener,noreferrer'); return; }
     }
-    window.location.href = `mailto:${trainer.email}?subject=${encodeURIComponent('FitLab training question')}`;
+    if (!isValidEmail(trainer.email.trim())) {
+        showAppAlert('Email trainer tidak valid. Hubungi admin FitLab.');
+        return;
+    }
+    window.location.href = `mailto:${trainer.email.trim()}?subject=${encodeURIComponent('FitLab training question')}`;
 }
 
 function openCommunity() {
@@ -1571,35 +1551,67 @@ function submitReport() {
 }
 
 function getSession() {
-    try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        if (!raw) return null;
+    const session = readSession();
 
-        const session: unknown = JSON.parse(raw);
-
-        if (
-            typeof session !== 'object' ||
-            session === null ||
-            !('role' in session) ||
-            !('name' in session) ||
-            !('email' in session)
-        ) {
-            return null;
-        }
-
-        return session as {
-            id?: string;
-            name: string;
-            firstName?: string;
-            firstname?: string;
-            lastName?: string;
-            lastname?: string;
-            email: string;
-            role: string;
-        };
-    } catch {
+    if (
+        !session ||
+        typeof session.email !== 'string' ||
+        typeof session.name !== 'string' ||
+        !('role' in session)
+    ) {
         return null;
     }
+
+    return session as {
+        id?: string;
+        name: string;
+        firstName?: string;
+        firstname?: string;
+        lastName?: string;
+        lastname?: string;
+        email: string;
+        role: string;
+    };
+}
+
+const membershipExpiresAt = ref(0);
+
+function parseExpiry(value: unknown): number {
+    const time = typeof value === 'string' ? Date.parse(value) : NaN;
+    return Number.isFinite(time) ? time : 0;
+}
+
+// Keeps "days remaining" accurate and switches an expired membership back to inactive.
+function syncMembershipExpiry() {
+    if (!hasMembership.value || !membershipExpiresAt.value) return;
+
+    const msLeft = membershipExpiresAt.value - Date.now();
+
+    if (msLeft <= 0) {
+        hasMembership.value = false;
+        Object.assign(membership, {
+            plan: 'No Membership',
+            description: 'Choose a membership plan to access member features.',
+            daysLeft: 0,
+            status: 'inactive',
+            statusLabel: 'Inactive',
+            paymentStatus: 'Not paid',
+        });
+
+        try {
+            const key = accountStorageKey('fitlab-membership');
+            const raw = localStorage.getItem(key);
+            const saved = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+            localStorage.setItem(key, JSON.stringify({ ...saved, active: false, status: 'expired', statusLabel: 'Expired' }));
+        } catch (error) {
+            console.warn('Unable to persist membership expiry:', error);
+        }
+
+        if (activeModal.value === 'qr') activeModal.value = null;
+        return;
+    }
+
+    membership.daysLeft = Math.ceil(msLeft / 86_400_000);
 }
 
 function restoreData() {
@@ -1610,14 +1622,9 @@ function restoreData() {
         return;
     }
 
-    if (session.role !== 'member') {
-        if (session.role === 'admin') {
-            void router.replace('/admin/dashboard');
-        } else if (session.role === 'pt') {
-            void router.replace('/pt/dashboard');
-        } else {
-            void router.replace('/login');
-        }
+    const sessionRole = getSessionRole(session);
+    if (sessionRole !== 'user') {
+        void router.replace(getDashboardPath(sessionRole));
         return;
     }
 
@@ -1631,17 +1638,21 @@ function restoreData() {
     try {
         const savedMembership = localStorage.getItem(accountStorageKey('fitlab-membership'));
         if (savedMembership) {
-            const saved = JSON.parse(savedMembership) as { active?: boolean; plan?: string; description?: string; startDate?: string; endDate?: string; daysLeft?: number; paymentStatus?: string; status?: string; statusLabel?: string };
+            const saved = JSON.parse(savedMembership) as { active?: boolean; plan?: string; description?: string; startDate?: string; endDate?: string; daysLeft?: number; paymentStatus?: string; status?: string; statusLabel?: string; expiresAt?: string };
             hasMembership.value = saved.active === true;
-            if (hasMembership.value) Object.assign(membership, saved, { status: 'active', statusLabel: 'Active' });
+            if (hasMembership.value) {
+                Object.assign(membership, saved, { status: 'active', statusLabel: 'Active' });
+                membershipExpiresAt.value = parseExpiry(saved.expiresAt);
+                syncMembershipExpiry();
+            }
         }
-        const savedProfile = localStorage.getItem(accountStorageKey(PROFILE_KEY)) || localStorage.getItem(PROFILE_KEY);
+        const savedProfile = localStorage.getItem(accountStorageKey(PROFILE_KEY));
 
         if (savedProfile) {
             const parsed = JSON.parse(savedProfile) as Partial<MemberProfile>;
 
             // Apply saved profile only to the same account.
-            if (parsed.email === session.email) {
+            if (String(parsed.email || '').toLowerCase() === session.email.toLowerCase()) {
                 profile.name = parsed.name || sessionFullName || 'Member';
                 profile.email = session.email;
                 profile.phone = parsed.phone || '';
@@ -1655,7 +1666,7 @@ function restoreData() {
             }
         }
 
-        const savedSettings = localStorage.getItem(accountStorageKey(SETTINGS_KEY)) || localStorage.getItem(SETTINGS_KEY);
+        const savedSettings = localStorage.getItem(accountStorageKey(SETTINGS_KEY));
 
         if (savedSettings) {
             const parsed = JSON.parse(savedSettings) as Partial<typeof settings>;
@@ -1664,7 +1675,7 @@ function restoreData() {
                 parsed.membershipNotifications ?? true;
         }
 
-        const savedWater = localStorage.getItem(accountStorageKey(WATER_KEY)) || localStorage.getItem(WATER_KEY);
+        const savedWater = localStorage.getItem(accountStorageKey(WATER_KEY));
 
         if (savedWater !== null) {
             const parsedWater = Number(savedWater);
@@ -1790,6 +1801,7 @@ function activateMembership(plan: (typeof membershipPlans.value)[number], paymen
     };
     Object.assign(membership, activeRecord);
     hasMembership.value = true;
+    membershipExpiresAt.value = end.getTime();
     try {
         localStorage.setItem(accountStorageKey('fitlab-membership'), JSON.stringify(activeRecord));
         localStorage.removeItem(accountStorageKey('fitlab-pending-payment'));
@@ -2044,17 +2056,24 @@ async function uploadKtp(event: Event) {
         const result = await worker.recognize(file);
         const text = result.data.text.replace(/\r/g, '');
         const ageMatch = text.match(/(?:umur|usia)\s*[:：]?\s*(\d{1,3})/i);
-        const birthDateMatch = text.match(/(?:tgl\.?\s*lahir|tanggal\s*lahir|lahir)[^\n]*?(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/i)
-            || text.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](19\d{2}|20\d{2})\b/);
+        const birthDateMatch = text.match(/(?:tgl\.?\s*lahir|tanggal\s*lahir|lahir)[^\n]*?(\d{1,2})[/-](\d{1,2})[/-](\d{4})/i)
+            || text.match(/\b(\d{1,2})[/-](\d{1,2})[/-](19\d{2}|20\d{2})\b/);
         if (ageMatch) {
             const age = Number(ageMatch[1]);
             if (age > 0 && age <= 120) profile.age = age;
         } else if (birthDateMatch) {
-            const birthDate = new Date(Number(birthDateMatch[3]), Number(birthDateMatch[2]) - 1, Number(birthDateMatch[1]));
+            const day = Number(birthDateMatch[1]);
+            const month = Number(birthDateMatch[2]);
+            const year = Number(birthDateMatch[3]);
+            const birthDate = new Date(year, month - 1, day);
+            // Reject impossible dates such as 31/02 that JavaScript would silently roll over.
+            const isRealDate = birthDate.getFullYear() === year
+                && birthDate.getMonth() === month - 1
+                && birthDate.getDate() === day;
             const today = new Date();
             let age = today.getFullYear() - birthDate.getFullYear();
             if (today.getMonth() < birthDate.getMonth() || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())) age--;
-            if (age > 0 && age <= 120) profile.age = age;
+            if (isRealDate && age > 0 && age <= 120) profile.age = age;
         }
         const addressMatch = text.match(/(?:alamat)\s*[:：]?\s*([^\n]+)/i);
         if (addressMatch) {
@@ -2077,12 +2096,18 @@ async function uploadKtp(event: Event) {
 async function saveProfile() {
     const session = getSession();
 
-    if (!session || session.role !== 'member') {
+    if (!session || getSessionRole(session) !== 'user') {
         void router.replace('/login');
         return;
     }
 
     profile.name = profile.name.trim();
+    if (!profile.name) {
+        showAppAlert('Nama tidak boleh kosong.');
+        return;
+    }
+    // The account email comes from the login session and cannot be changed here.
+    profile.email = session.email;
 
     try {
         if (ktpFileDraft.value && profile.ktpFileName === ktpFileDraft.value.name) {
@@ -2118,10 +2143,6 @@ async function saveProfile() {
             URL.revokeObjectURL(ktpPreviewUrlSnapshot.value);
         }
         ktpPreviewUrlSnapshot.value = ktpPreviewUrl.value;
-        if (ktpPreviewUrlSnapshot.value && ktpPreviewUrlSnapshot.value !== ktpPreviewUrl.value) {
-            URL.revokeObjectURL(ktpPreviewUrlSnapshot.value);
-        }
-        ktpPreviewUrlSnapshot.value = ktpPreviewUrl.value;
         profileSnapshot.value = { ...profile };
         ktpFileDraft.value = null;
         ktpFeedback.value = '';
@@ -2138,8 +2159,8 @@ function uploadAvatar(event: Event) {
 
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-        showAppAlert('Pilih file gambar yang valid.');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        showAppAlert('Pilih foto JPG, PNG, atau WebP.');
         input.value = '';
         return;
     }
@@ -2156,10 +2177,12 @@ function uploadAvatar(event: Event) {
         if (typeof reader.result === 'string') {
             profile.avatar = reader.result;
         }
+        input.value = '';
     };
 
     reader.onerror = () => {
         showAppAlert('Foto gagal dibaca. Silakan coba lagi.');
+        input.value = '';
     };
 
     reader.readAsDataURL(file);
@@ -2191,7 +2214,7 @@ function saveSettings() {
 }
 
 function logout() {
-    localStorage.removeItem(SESSION_KEY);
+    clearSession();
     void router.replace('/login');
 }
 
@@ -2207,6 +2230,7 @@ onMounted(() => {
     restoreData();
     qrTicker = setInterval(() => {
         qrNow.value = Date.now();
+        syncMembershipExpiry();
         if (activeModal.value === 'qr' && qrCountdownSeconds.value <= 0) rotateQrToken();
     }, 1000);
 });

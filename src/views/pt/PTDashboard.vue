@@ -580,6 +580,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonPage, IonContent, IonModal, IonIcon } from '@ionic/vue';
+import { clearSession, getSessionRole, readSession } from '@/utils/session';
 import {
     notificationsOutline,
     chevronDownOutline,
@@ -658,8 +659,9 @@ interface PTStorage {
 }
 
 const router = useRouter();
-const SESSION_KEY = 'fitlab_session';
 const STORAGE_KEY = 'fitlab-pt-dashboard';
+const DEFAULT_TRAINER_NAME = 'Private Trainer II';
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ASSIGNMENTS_KEY = 'fitlab-pt-assignments';
 
 const avatarFallback =
@@ -681,7 +683,7 @@ const dietSearch = ref('');
 const selectedClient = ref<Client | null>(null);
 
 const profile = reactive<TrainerProfile>({
-    name: 'Private Trainer II',
+    name: DEFAULT_TRAINER_NAME,
     email: 'pt2@fitlab.com',
     specialty: 'Personal Trainer',
     bio: 'Helping members improve their strength, fitness, and healthy habits.',
@@ -870,16 +872,20 @@ function persistData() {
 
 function syncAdminAssignments() {
     try {
-        const rawSession = localStorage.getItem(SESSION_KEY);
-        const session = rawSession ? JSON.parse(rawSession) as { email?: string; role?: string } : null;
-        if (!session?.email || session.role !== 'pt') return;
+        const session = readSession();
+        const sessionEmail = typeof session?.email === 'string' ? session.email : '';
+        if (!sessionEmail || getSessionRole(session) !== 'pt') return;
 
         const rawAssignments = localStorage.getItem(ASSIGNMENTS_KEY);
         if (!rawAssignments) return; // Keep demo data only until Admin creates the first assignment.
 
-        const assignments = JSON.parse(rawAssignments) as Array<Record<string, unknown>>;
+        const parsedAssignments: unknown = JSON.parse(rawAssignments);
+        if (!Array.isArray(parsedAssignments)) return;
+
+        const assignments = parsedAssignments as Array<Record<string, unknown>>;
         const assigned = assignments.filter((item) =>
-            String(item.trainerEmail || '').toLowerCase() === session.email!.toLowerCase() &&
+            item !== null && typeof item === 'object' &&
+            String(item.trainerEmail || '').toLowerCase() === sessionEmail.toLowerCase() &&
             item.status === 'assigned' && typeof item.memberEmail === 'string'
         );
         clients.value = assigned.map((item, index) => ({
@@ -896,6 +902,10 @@ function syncAdminAssignments() {
 function saveProfile() {
     profile.name = profile.name.trim();
     profile.specialty = profile.specialty.trim();
+    if (!profile.name || !profile.specialty) {
+        window.alert('Nama dan spesialisasi tidak boleh kosong.');
+        return;
+    }
     persistData();
     closeModal();
 }
@@ -905,8 +915,8 @@ function uploadAvatar(event: Event) {
     const file = input.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-        window.alert('Pilih file gambar yang valid.');
+    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+        window.alert('Pilih file gambar JPG, PNG, atau WebP.');
         input.value = '';
         return;
     }
@@ -923,8 +933,12 @@ function uploadAvatar(event: Event) {
             profile.avatar = reader.result;
             persistData();
         }
+        input.value = '';
     };
-    reader.onerror = () => window.alert('Foto gagal dibaca.');
+    reader.onerror = () => {
+        window.alert('Foto gagal dibaca.');
+        input.value = '';
+    };
     reader.readAsDataURL(file);
 }
 
@@ -975,6 +989,11 @@ function removeSession(id: string) {
 }
 
 function addWorkout() {
+    if (!workoutForm.name.trim() || !workoutForm.duration.trim()) {
+        window.alert('Nama plan dan durasi wajib diisi.');
+        return;
+    }
+
     workouts.value.push({
         id: `WK-${Date.now()}`,
         clientId: workoutForm.clientId || undefined,
@@ -996,12 +1015,22 @@ function removeWorkout(id: string) {
 }
 
 function addDiet() {
+    const calories = Number(dietForm.calories);
+    if (!dietForm.name.trim() || !dietForm.description.trim()) {
+        window.alert('Nama dan deskripsi diet plan wajib diisi.');
+        return;
+    }
+    if (!Number.isFinite(calories) || calories <= 0) {
+        window.alert('Kalori harian harus lebih dari 0.');
+        return;
+    }
+
     diets.value.push({
         id: `DT-${Date.now()}`,
         clientId: dietForm.clientId || undefined,
         name: dietForm.name.trim(),
         description: dietForm.description.trim(),
-        calories: dietForm.calories,
+        calories,
         type: dietForm.type,
     });
 
@@ -1019,6 +1048,11 @@ function removeDiet(id: string) {
 
 function addClient() {
     const name = clientForm.name.trim();
+
+    if (!name) {
+        window.alert('Nama klien wajib diisi.');
+        return;
+    }
 
     if (clients.value.some((client) => client.name.toLowerCase() === name.toLowerCase())) {
         window.alert('Klien dengan nama tersebut sudah ada.');
@@ -1047,35 +1081,40 @@ function removeClient(id: string) {
 }
 
 function logout() {
-    localStorage.removeItem(SESSION_KEY);
+    clearSession();
     void router.replace({
         path: '/login',
         query: { role: 'pt' }
     });
 }
 
-function validateRole() {
-    try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        if (!raw) {
-            void router.replace('/login');
-            return;
-        }
+/** Returns true when the stored session belongs to a personal trainer. */
+function validateRole(): boolean {
+    const session = readSession();
 
-        const session = JSON.parse(raw) as { role?: string; email?: string; name?: string };
-
-        if (session.role !== 'pt') {
-            if (session.role === 'admin') void router.replace('/admin/dashboard');
-            else if (session.role === 'member') void router.replace('/user/dashboard');
-            else void router.replace('/login');
-            return;
-        }
-
-        if (session.email) profile.email = session.email;
-        if (session.name && profile.name === 'Owy') profile.name = session.name;
-    } catch {
-        localStorage.removeItem(SESSION_KEY);
+    if (!session) {
         void router.replace('/login');
+        return false;
+    }
+
+    const role = getSessionRole(session);
+
+    if (role !== 'pt') {
+        if (role === 'admin') void router.replace('/admin/dashboard');
+        else if (role === 'user') void router.replace('/user/dashboard');
+        else void router.replace('/login');
+        return false;
+    }
+
+    applySessionIdentity(session);
+    return true;
+}
+
+// The login session is authoritative for the signed-in trainer.
+function applySessionIdentity(session: Record<string, any>) {
+    if (typeof session.email === 'string' && session.email) profile.email = session.email;
+    if (typeof session.name === 'string' && session.name && profile.name === DEFAULT_TRAINER_NAME) {
+        profile.name = session.name;
     }
 }
 
@@ -1086,23 +1125,15 @@ watch(
 );
 
 onMounted(() => {
-    validateRole();
+    // Do not load or expose trainer data for a session that is not a trainer.
+    if (!validateRole()) return;
+
     readStoredData();
     syncAdminAssignments();
 
-    // The login session is authoritative for the signed-in trainer.
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (raw) {
-        try {
-            const session = JSON.parse(raw) as { role?: string; email?: string; name?: string };
-            if (session.role === 'pt') {
-                if (session.email) profile.email = session.email;
-                if (session.name && profile.name === 'Owy') profile.name = session.name;
-            }
-        } catch {
-            // validateRole handles malformed sessions.
-        }
-    }
+    // Stored profile may hold an older email; the login session wins.
+    const session = readSession();
+    if (session) applySessionIdentity(session);
 });
 </script>
 

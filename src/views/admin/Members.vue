@@ -344,6 +344,8 @@ import {
     ref
 } from 'vue';
 
+import { isValidEmail } from '@/utils/auth';
+
 interface Member {
     id: string;
     name: string;
@@ -451,16 +453,59 @@ const newMember = reactive({
     medicalNotes: ''
 });
 
+// Highest existing MEM-number + 1 so deleting a member never produces a duplicate id.
+const getNextMemberId = () => {
+    const highest = members.value.reduce((max, member) => {
+        const match = /^MEM-(\d+)$/.exec(member.id);
+        return match ? Math.max(max, Number(match[1])) : max;
+    }, 1000);
+
+    return `MEM-${highest + 1}`;
+};
+
+// Returns an error message, or '' when the data is acceptable.
+const validateMember = (
+    data: { name: string; email: string; age: unknown; height: unknown; weight: unknown },
+    ignoreId = ''
+): string => {
+    if (!data.name.trim()) return 'Full name is required.';
+
+    const email = data.email.trim().toLowerCase();
+
+    if (email) {
+        if (!isValidEmail(email)) return 'Please enter a valid email address.';
+
+        const duplicate = members.value.some(
+            (member) => member.id !== ignoreId && member.email.trim().toLowerCase() === email
+        );
+
+        if (duplicate) return 'A member with this email already exists.';
+    }
+
+    for (const value of [data.age, data.height, data.weight]) {
+        if (value !== null && value !== '' && !(Number.isFinite(Number(value)) && Number(value) >= 0)) {
+            return 'Age, height and weight must be positive numbers.';
+        }
+    }
+
+    return '';
+};
+
 const addMember = () => {
-    const nextId = members.value.length + 1001;
+    const error = validateMember(newMember);
+
+    if (error) {
+        window.alert(error);
+        return;
+    }
 
     members.value.push({
-        id: `MEM-${nextId}`,
-        name: newMember.name || 'New Member',
+        id: getNextMemberId(),
+        name: newMember.name.trim(),
         age: Number(newMember.age),
         gender: newMember.gender,
-        phone: newMember.phone,
-        email: newMember.email,
+        phone: newMember.phone.trim(),
+        email: newMember.email.trim(),
         address: newMember.address,
         height: Number(newMember.height),
         weight: Number(newMember.weight),
@@ -573,8 +618,16 @@ const saveEdit = () => {
 
     if (index === -1) return;
 
+    const error = validateMember(editForm, editForm.id);
+
+    if (error) {
+        window.alert(error);
+        return;
+    }
+
     members.value[index] = {
         ...editForm,
+        name: editForm.name.trim(),
         age: Number(editForm.age),
         height: Number(editForm.height),
         weight: Number(editForm.weight)

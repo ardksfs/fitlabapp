@@ -1,7 +1,8 @@
 
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import type { RouteRecordRaw } from 'vue-router';
-import MemberEventPage from '../views/MemberEventPage.vue';
+import { readSession } from '../utils/session';
+import { resolveNavigation } from './guard';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -14,12 +15,13 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/auth/Auth.vue'),
   },
 
-  //ads path
+  // Member-only event page (opened from the ad popup and notifications)
   {
-  path: '/member-event',
-  name: 'MemberEvent',
-  component: () => import('../views/MemberEventPage.vue'),
-},
+    path: '/member-event',
+    name: 'MemberEvent',
+    component: () => import('../views/MemberEventPage.vue'),
+    meta: { requiresAuth: true, role: 'user' },
+  },
   // USER
   {
     path: '/user',
@@ -119,81 +121,6 @@ const router = createRouter({
   routes,
 });
 
-function normalizeRole(value: unknown): string {
-  const role = String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_');
-
-  if (['user', 'member', 'gym_member'].includes(role)) {
-    return 'user';
-  }
-
-  if (
-    ['pt', 'trainer', 'personal_trainer', 'personaltrainer'].includes(role)
-  ) {
-    return 'pt';
-  }
-
-  if (['admin', 'administrator'].includes(role)) {
-    return 'admin';
-  }
-
-  return role;
-}
-
-function getDashboardPath(role: string): string {
-  if (role === 'admin') return '/admin/dashboard';
-  if (role === 'pt') return '/pt/dashboard';
-  if (role === 'user') return '/user/dashboard';
-
-  return '/login';
-}
-
-router.beforeEach((to) => {
-  if (to.path === '/login') {
-    return true;
-  }
-
-  let session: Record<string, any> | null = null;
-
-  try {
-    const storedSession = localStorage.getItem('fitlab_session');
-    session = storedSession ? JSON.parse(storedSession) : null;
-  } catch {
-    localStorage.removeItem('fitlab_session');
-  }
-
-  if (to.matched.some((record) => record.meta.requiresAuth) && !session) {
-    return '/login';
-  }
-
-  if (!session) {
-    return true;
-  }
-
-  const role = normalizeRole(
-    session.role ??
-    session.user?.role ??
-    session.account?.role
-  );
-
-  const requiredRole = to.meta.role
-    ? normalizeRole(to.meta.role)
-    : '';
-
-  if (requiredRole && role !== requiredRole) {
-    return getDashboardPath(role);
-  }
-
-  if (
-    to.matched.some((record) => record.meta.requiresAuth) &&
-    !['admin', 'pt', 'user'].includes(role)
-  ) {
-    return '/login';
-  }
-
-  return true;
-});
+router.beforeEach((to) => resolveNavigation(to, readSession()));
 
 export default router;

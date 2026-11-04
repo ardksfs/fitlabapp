@@ -15,6 +15,8 @@ module.exports = {
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'vue/no-deprecated-slot-attribute': 'off',
+    // Page, layout and component files are named after their route/role (Auth, Members, ...).
+    'vue/multi-word-component-names': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
   }
 }

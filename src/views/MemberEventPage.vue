@@ -175,7 +175,10 @@ function isSafeInternalReturnPath(
     if (
         typeof value !== 'string' ||
         !value.startsWith('/') ||
-        value.startsWith('//')
+        value.startsWith('//') ||
+        // Browsers treat "\" as "/", so "/\host" would become a protocol-relative URL.
+        // eslint-disable-next-line no-control-regex
+        /[\\\u0000-\u001f]/.test(value)
     ) {
         return false;
     }

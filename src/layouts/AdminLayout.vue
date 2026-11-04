@@ -199,6 +199,7 @@ import {
 } from '@ionic/vue';
 
 import Sidebar from '../components/Sidebar.vue';
+import { isValidEmail } from '../utils/auth';
 
 interface AdminProfile {
     name: string;
@@ -288,11 +289,6 @@ const closeProfileModal = () => {
     }
 };
 
-// Open file picker
-const triggerFileInput = () => {
-    fileInput.value?.click();
-};
-
 // Handle profile picture upload
 const handleAvatarChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -347,6 +343,11 @@ const saveProfile = () => {
 
     if (!form.email.trim()) {
         alert('Email cannot be empty.');
+        return;
+    }
+
+    if (!isValidEmail(form.email.trim())) {
+        alert('Please enter a valid email address.');
         return;
     }
 
