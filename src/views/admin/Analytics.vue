@@ -333,13 +333,16 @@ function openNewTransaction() {
     showTransactionModal.value = true;
 }
 function createTransaction() {
-    if (!newTransaction.customer || !newTransaction.product || !newTransaction.amount || newTransaction.amount <= 0) return;
+    const customer = newTransaction.customer.trim();
+    const product = newTransaction.product.trim();
+    const amount = Number(newTransaction.amount);
+    if (!customer || !product || !Number.isFinite(amount) || amount <= 0) return;
     transactions.value.unshift({
         id: makeTransactionId(),
-        customer: newTransaction.customer.toUpperCase(),
-        product: newTransaction.product,
+        customer: customer.toUpperCase(),
+        product,
         payment: newTransaction.payment,
-        amount: Number(newTransaction.amount),
+        amount,
         date: new Date(),
     });
     activeTab.value = 'all';
@@ -357,6 +360,8 @@ function downloadReceipt(transaction: Transaction) {
         window.alert('Popup diblokir browser. Izinkan popup untuk mengunduh receipt.');
         return;
     }
+    // The receipt window only receives escaped text; cut its link back to this app anyway.
+    receiptWindow.opener = null;
     const customer = escapeHtml(transaction.customer);
     const product = escapeHtml(transaction.product);
     const payment = escapeHtml(transaction.payment);
@@ -394,7 +399,7 @@ hr{border:0;border-top:1px dashed #ccd7d7;margin:17px 0}
 <hr><div class="line total"><span>Total Paid</span><strong>${amount}</strong></div>
 <div class="status">PAID</div><div class="thanks">Thank you for training with us!<br>Fitlab Gym Center</div>
 <button class="print" onclick="window.print()">Download / Save as PDF</button>
-</main><script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);
+</main><script>window.onload=()=>setTimeout(()=>window.print(),350)<${'/'}script></body></html>`);
     receiptWindow.document.close();
 }
 </script>

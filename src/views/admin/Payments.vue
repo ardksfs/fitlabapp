@@ -46,7 +46,7 @@
 
                         <select v-model="newPayment.method">
                             <option value="Cash">Cash</option>
-                            <option value="UPI">Qris</option>
+                            <option value="Qris">Qris</option>
                             <option value="Bank Transfer">
                                 Bank Transfer
                             </option>
@@ -362,18 +362,18 @@ onUnmounted(() => {
 
 /* NEXT INVOICE */
 
-const getNextInvoiceNumber = (
-    date: string
-): string => {
+// Based on the highest existing number so deleting a payment never creates a duplicate invoice.
+const getNextInvoiceNumber = (): string => {
 
-    const todayPayments = payments.value.filter(
-        payment => payment.date === date
-    );
+    const highest = payments.value.reduce((max, payment) => {
 
-    const nextNumber =
-        todayPayments.length + 1;
+        const match = /^INV-(\d+)$/.exec(payment.invoice);
 
-    return `INV-${String(nextNumber).padStart(2, '0')}`;
+        return match ? Math.max(max, Number(match[1])) : max;
+
+    }, 0);
+
+    return `INV-${String(highest + 1).padStart(2, '0')}`;
 
 };
 
@@ -402,7 +402,8 @@ const createPayment = (): void => {
 
     if (
         !newPayment.member.trim() ||
-        !newPayment.amount ||
+        !Number.isFinite(Number(newPayment.amount)) ||
+        Number(newPayment.amount) <= 0 ||
         !newPayment.date
     ) {
 
@@ -410,9 +411,7 @@ const createPayment = (): void => {
     }
 
     const invoice =
-        getNextInvoiceNumber(
-            newPayment.date
-        );
+        getNextInvoiceNumber();
 
 
     payments.value.push({

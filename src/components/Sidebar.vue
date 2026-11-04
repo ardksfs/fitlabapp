@@ -223,6 +223,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { menuController } from '@ionic/vue';
+import { clearSession } from '../utils/session';
 
 // ==========================================
 // ADMIN PROFILE
@@ -434,7 +435,7 @@ const handleLogout = async () => {
 
     await menuController.close('main-menu');
 
-    localStorage.removeItem('fitlab_session');
+    clearSession();
 
     await router.replace({
         path: '/login',

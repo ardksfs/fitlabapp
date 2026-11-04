@@ -1,4 +1,3 @@
-```vue
 <template>
     <footer class="app-footer">
         <p>

@@ -390,10 +390,26 @@ const getCurrentTime = () => {
     return `${hours}:${minutes}`;
 };
 
+// The form follows the live clock until the admin edits the date or time by hand.
+let lastAutoDate = getCurrentDate();
+let lastAutoTime = getCurrentTime();
+
 const updateCurrentDateTime = () => {
 
-    newRecord.date = getCurrentDate();
-    newRecord.time = getCurrentTime();
+    const currentDate = getCurrentDate();
+    const currentTime = getCurrentTime();
+
+    if (newRecord.date === lastAutoDate) newRecord.date = currentDate;
+    if (newRecord.time === lastAutoTime) newRecord.time = currentTime;
+
+    lastAutoDate = currentDate;
+    lastAutoTime = currentTime;
+};
+
+const resetDateTimeToNow = () => {
+
+    lastAutoDate = newRecord.date = getCurrentDate();
+    lastAutoTime = newRecord.time = getCurrentTime();
 };
 
 /* ATTENDANCE DATA= */
@@ -487,6 +503,12 @@ onUnmounted(() => {
 
 const createAttendance = () => {
 
+    const memberName = newRecord.member.trim();
+
+    if (!memberName || !newRecord.date || !newRecord.time) {
+        return;
+    }
+
     const newId =
         records.value.length > 0
             ? Math.max(
@@ -498,7 +520,7 @@ const createAttendance = () => {
 
     records.value.push({
         id: newId,
-        member: newRecord.member,
+        member: memberName,
         date: newRecord.date,
         time: newRecord.time,
         status: newRecord.status
@@ -507,7 +529,7 @@ const createAttendance = () => {
     newRecord.member = '';
     newRecord.status = 'Present';
 
-    updateCurrentDateTime();
+    resetDateTimeToNow();
 };
 
 /* OPEN EDIT MODAL */
@@ -541,9 +563,13 @@ const saveEditRecord = () => {
         return;
     }
 
+    if (!editForm.member.trim()) {
+        return;
+    }
+
     records.value[index] = {
         id: editForm.id,
-        member: editForm.member,
+        member: editForm.member.trim(),
         date: editForm.date,
         time: editForm.time,
         status: editForm.status

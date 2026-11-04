@@ -157,7 +157,6 @@
                 v-if="isPreviewOpen && selectedReportData"
                 class="report-overlay"
                 @click.self="closeReportPreview"
-                @keydown.esc.window="closeReportPreview"
             >
                 <section
                     class="report-modal"
@@ -377,7 +376,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 import {
     IonPage,
@@ -675,6 +674,14 @@ const closeReportPreview = () => {
     isPreviewOpen.value = false;
 };
 
+// Vue has no ".window" event modifier, so Escape is listened for on window directly.
+const handleEscape = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && isPreviewOpen.value) closeReportPreview();
+};
+
+onMounted(() => window.addEventListener('keydown', handleEscape));
+onUnmounted(() => window.removeEventListener('keydown', handleEscape));
+
 
 const isStatusCell = (value: string, index: number) => {
     return (
@@ -711,7 +718,14 @@ const downloadCsv = () => {
     if (!report) return;
 
     const escapeCsv = (value: string) => {
-        return `"${String(value).replace(/"/g, '""')}"`;
+        let text = String(value);
+
+        // Prevent spreadsheet formula injection (=, +, -, @ at the start of a cell).
+        if (/^[=+\-@\t\r]./.test(text)) {
+            text = `'${text}`;
+        }
+
+        return `"${text.replace(/"/g, '""')}"`;
     };
 
     const csvRows = [
@@ -742,7 +756,8 @@ const downloadCsv = () => {
     link.click();
     document.body.removeChild(link);
 
-    URL.revokeObjectURL(url);
+    // Revoke later; revoking immediately can cancel the download in some browsers.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 

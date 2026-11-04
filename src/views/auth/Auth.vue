@@ -348,10 +348,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { IonPage, IonContent } from '@ionic/vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppFooter from '@/components/AppFooter.vue';
+import { SESSION_KEY } from '@/utils/session';
+import {
+    canHashPasswords,
+    createSalt,
+    hashPassword,
+    isValidEmail,
+    timingSafeEqual
+} from '@/utils/auth';
 
 const router = useRouter();
 const route = useRoute();
@@ -405,6 +413,9 @@ watch(
 
         showPass.value = false;
         authorizedStaff.value = false;
+        // Never carry credentials over to another portal.
+        email.value = '';
+        password.value = '';
         showAlert.value = false;
         alertTitle.value = '';
         alertMessage.value = '';
@@ -415,12 +426,16 @@ interface AuthUser {
     id: string;
     name: string;
     email: string;
-    password: string;
+    /** Legacy plain-text password (old accounts and built-in staff accounts only). */
+    password?: string;
+    /** Salted PBKDF2 hash used for newly registered members. */
+    passwordHash?: string;
+    salt?: string;
     role: UserRole;
 }
 
 const USERS_KEY = 'fitlab_users';
-const SESSION_KEY = 'fitlab_session';
+const MAX_NAME_LENGTH = 80;
 
 const defaultAdmin: AuthUser = {
     id: 'ADM-1001',
@@ -440,6 +455,10 @@ const defaultPT: AuthUser = {
 
 let alertTimeout: ReturnType<typeof setTimeout> | undefined;
 
+onUnmounted(() => {
+    if (alertTimeout) clearTimeout(alertTimeout);
+});
+
 const showNotification = (title: string, message: string) => {
     if (alertTimeout) clearTimeout(alertTimeout);
 
@@ -458,40 +477,67 @@ const handleToggle = (value: boolean) => {
     isLogin.value = value;
     memberStep.value = value ? 2 : 1;
     showPass.value = false;
+    password.value = '';
     showAlert.value = false;
     alertTitle.value = '';
     alertMessage.value = '';
 };
 
-const getUsers = (): AuthUser[] => {
+// Only member accounts are persisted. Staff accounts are built in (no backend).
+const readMembers = (): AuthUser[] => {
     try {
         const stored = localStorage.getItem(USERS_KEY);
-        let users: AuthUser[] = [];
+        if (!stored) return [];
 
-        if (stored) {
-            const parsed: unknown = JSON.parse(stored);
+        const parsed: unknown = JSON.parse(stored);
+        if (!Array.isArray(parsed)) return [];
 
-            if (Array.isArray(parsed)) {
-                users = parsed.filter(
-                    (user): user is AuthUser =>
-                        user !== null &&
-                        typeof user === 'object' &&
-                        typeof user.id === 'string' &&
-                        typeof user.name === 'string' &&
-                        typeof user.email === 'string' &&
-                        typeof user.password === 'string' &&
-                        user.role === 'member'
-                );
-            }
-        }
-
-        users.push(defaultAdmin, defaultPT);
-
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-        return users;
+        return parsed.filter(
+            (user): user is AuthUser =>
+                user !== null &&
+                typeof user === 'object' &&
+                typeof user.id === 'string' &&
+                typeof user.name === 'string' &&
+                typeof user.email === 'string' &&
+                (typeof user.password === 'string' ||
+                    (typeof user.passwordHash === 'string' && typeof user.salt === 'string')) &&
+                user.role === 'member'
+        );
     } catch {
-        throw new Error('Data akun gagal dibaca dari browser.');
+        // A corrupt member list must not lock out admin/PT logins.
+        return [];
+    }
+};
+
+const saveMembers = (members: AuthUser[]) => {
+    localStorage.setItem(USERS_KEY, JSON.stringify(members));
+};
+
+const passwordMatches = async (user: AuthUser, entered: string): Promise<boolean> => {
+    if (user.passwordHash && user.salt) {
+        if (!canHashPasswords()) return false;
+        return timingSafeEqual(await hashPassword(entered, user.salt), user.passwordHash);
+    }
+
+    return typeof user.password === 'string' && timingSafeEqual(user.password, entered);
+};
+
+// Moves a legacy plain-text member password to a salted hash after a successful login.
+const upgradeLegacyPassword = async (user: AuthUser, entered: string, members: AuthUser[]) => {
+    if (user.role !== 'member' || user.passwordHash || !canHashPasswords()) return;
+
+    try {
+        const salt = createSalt();
+        const passwordHash = await hashPassword(entered, salt);
+        const upgraded = members.map((member) => {
+            if (member.id !== user.id) return member;
+            const next: AuthUser = { ...member, passwordHash, salt };
+            delete next.password;
+            return next;
+        });
+        saveMembers(upgraded);
+    } catch (error) {
+        console.warn('Unable to upgrade stored password:', error);
     }
 };
 
@@ -523,14 +569,16 @@ const handleAuth = async () => {
             return;
         }
 
-        const users = getUsers();
+        const members = readMembers();
+        const users: AuthUser[] = [...members, defaultAdmin, defaultPT];
 
         if (isLogin.value) {
-            const user = users.find(
-                item =>
-                    item.email.toLowerCase() === normalizedEmail &&
-                    item.password === enteredPassword
+            const candidate = users.find(
+                item => item.email.toLowerCase() === normalizedEmail
             );
+            const user = candidate && await passwordMatches(candidate, enteredPassword)
+                ? candidate
+                : undefined;
 
             if (!user) {
                 showNotification(
@@ -560,6 +608,8 @@ const handleAuth = async () => {
                 return;
             }
 
+            await upgradeLegacyPassword(user, enteredPassword, members);
+
             const session = {
                 id: user.id,
                 name: user.name,
@@ -583,10 +633,21 @@ const handleAuth = async () => {
             return;
         }
 
-        if (!firstName.value.trim() || !lastName.value.trim()) {
+        const trimmedFirstName = firstName.value.trim();
+        const trimmedLastName = lastName.value.trim();
+
+        if (!trimmedFirstName || !trimmedLastName) {
             showNotification(
                 'Validation Error',
                 'First name dan last name wajib diisi.'
+            );
+            return;
+        }
+
+        if (trimmedFirstName.length > MAX_NAME_LENGTH || trimmedLastName.length > MAX_NAME_LENGTH) {
+            showNotification(
+                'Validation Error',
+                `Nama maksimal ${MAX_NAME_LENGTH} karakter.`
             );
             return;
         }
@@ -599,9 +660,7 @@ const handleAuth = async () => {
             return;
         }
 
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        if (!emailPattern.test(normalizedEmail)) {
+        if (!isValidEmail(normalizedEmail)) {
             showNotification(
                 'Validation Error',
                 'Format email tidak valid.'
@@ -619,21 +678,27 @@ const handleAuth = async () => {
             return;
         }
 
+        const credentials: Pick<AuthUser, 'password' | 'passwordHash' | 'salt'> = {};
+
+        if (canHashPasswords()) {
+            const salt = createSalt();
+            credentials.salt = salt;
+            credentials.passwordHash = await hashPassword(enteredPassword, salt);
+        } else {
+            // Insecure context (plain http): Web Crypto is unavailable, so keep the legacy format.
+            credentials.password = enteredPassword;
+        }
+
         const newUser: AuthUser = {
-            id: `MEM-${Date.now()}`,
-            name: `${firstName.value.trim()} ${lastName.value.trim()}`.trim(),
+            id: `MEM-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            name: `${trimmedFirstName} ${trimmedLastName}`,
             email: normalizedEmail,
-            password: enteredPassword,
+            ...credentials,
             role: 'member'
         };
 
-        users.push(newUser);
-
         try {
-            localStorage.setItem(
-                USERS_KEY,
-                JSON.stringify(users)
-            );
+            saveMembers([...members, newUser]);
         } catch {
             showNotification(
                 'Registration Failed',
